@@ -1,0 +1,281 @@
+# 智能體協作規則配置檔
+# Agent Collaboration Rules Configuration
+
+version: "1.0"
+metadata:
+  name: "VibeCode Multi-Agent Collaboration Rules"
+  description: "Configuration for multi-agent system workflow and collaboration rules"
+  created: "2025-01-06"
+  author: "VibeCode System"
+
+# 智能體定義
+agents:
+  fetcher:
+    name: "fetcher"
+    role: "Data Retrieval Specialist"
+    description: "Fetches and gathers information from various sources"
+    capabilities:
+      - "web_scraping"
+      - "search"
+      - "data_retrieval"
+      - "source_validation"
+    max_retries: 3
+    timeout_seconds: 30
+    priority: 1
+    
+  summarizer:
+    name: "summarizer"
+    role: "Content Summarization Expert"
+    description: "Condenses and summarizes complex information"
+    capabilities:
+      - "text_summarization"
+      - "key_extraction"
+      - "content_synthesis"
+      - "brevity_optimization"
+    max_retries: 2
+    timeout_seconds: 45
+    priority: 2
+    
+  analyzer:
+    name: "analyzer"
+    role: "Data Analysis Specialist"
+    description: "Analyzes patterns, trends and provides insights"
+    capabilities:
+      - "pattern_analysis"
+      - "trend_identification"
+      - "correlation_analysis"
+      - "insight_generation"
+    max_retries: 2
+    timeout_seconds: 60
+    priority: 3
+    
+  coordinator:
+    name: "coordinator"
+    role: "Workflow Coordinator"
+    description: "Manages workflow and coordinates between agents"
+    capabilities:
+      - "task_management"
+      - "workflow_optimization"
+      - "conflict_resolution"
+      - "priority_setting"
+    max_retries: 1
+    timeout_seconds: 30
+    priority: 4
+    
+  responder:
+    name: "responder"
+    role: "Response Generation Expert"
+    description: "Synthesizes final responses for user queries"
+    capabilities:
+      - "response_synthesis"
+      - "content_formatting"
+      - "clarity_optimization"
+      - "user_communication"
+    max_retries: 2
+    timeout_seconds: 45
+    priority: 5
+
+# 工作流程定義
+workflows:
+  default:
+    name: "Default Multi-Agent Workflow"
+    description: "Standard workflow for general queries"
+    steps:
+      - name: "data_fetching"
+        agent: "fetcher"
+        required: true
+        dependencies: []
+        retry_on_failure: true
+        
+      - name: "content_summarization"
+        agent: "summarizer"
+        required: true
+        dependencies: ["data_fetching"]
+        retry_on_failure: true
+        
+      - name: "data_analysis"
+        agent: "analyzer"
+        required: false
+        dependencies: ["content_summarization"]
+        retry_on_failure: true
+        
+      - name: "coordination"
+        agent: "coordinator"
+        required: true
+        dependencies: ["data_analysis"]
+        retry_on_failure: false
+        
+      - name: "response_generation"
+        agent: "responder"
+        required: true
+        dependencies: ["coordination"]
+        retry_on_failure: true
+
+  research_intensive:
+    name: "Research Intensive Workflow"
+    description: "Workflow optimized for research-heavy tasks"
+    steps:
+      - name: "initial_search"
+        agent: "fetcher"
+        required: true
+        dependencies: []
+        retry_on_failure: true
+        
+      - name: "deep_analysis"
+        agent: "analyzer"
+        required: true
+        dependencies: ["initial_search"]
+        retry_on_failure: true
+        
+      - name: "secondary_search"
+        agent: "fetcher"
+        required: false
+        dependencies: ["deep_analysis"]
+        retry_on_failure: true
+        
+      - name: "comprehensive_summary"
+        agent: "summarizer"
+        required: true
+        dependencies: ["secondary_search"]
+        retry_on_failure: true
+        
+      - name: "coordination"
+        agent: "coordinator"
+        required: true
+        dependencies: ["comprehensive_summary"]
+        retry_on_failure: false
+        
+      - name: "response_generation"
+        agent: "responder"
+        required: true
+        dependencies: ["coordination"]
+        retry_on_failure: true
+
+# 協作規則
+collaboration_rules:
+  # 任務分配規則
+  task_assignment:
+    strategy: "priority_based"  # priority_based, round_robin, load_balanced
+    load_balancing: true
+    max_concurrent_tasks: 5
+    
+  # 通訊規則
+  communication:
+    message_format: "structured"
+    include_metadata: true
+    timeout_seconds: 120
+    max_message_length: 8192
+    
+  # 錯誤處理規則
+  error_handling:
+    auto_retry: true
+    max_global_retries: 3
+    fallback_strategy: "single_agent_simulation"
+    escalation_threshold: 2
+    
+  # 性能監控
+  monitoring:
+    track_performance: true
+    log_all_interactions: true
+    metrics_collection: true
+    health_check_interval: 30
+
+# 狀態機配置
+state_machine:
+  states:
+    - "idle"
+    - "queued"
+    - "running"
+    - "waiting_for_dependency"
+    - "completed"
+    - "failed"
+    - "cancelled"
+    
+  transitions:
+    - trigger: "start_task"
+      source: "idle"
+      dest: "queued"
+      
+    - trigger: "begin_execution"
+      source: "queued"
+      dest: "running"
+      
+    - trigger: "wait_for_dependency"
+      source: "running"
+      dest: "waiting_for_dependency"
+      
+    - trigger: "resume_execution"
+      source: "waiting_for_dependency"
+      dest: "running"
+      
+    - trigger: "complete_task"
+      source: "running"
+      dest: "completed"
+      
+    - trigger: "fail_task"
+      source: ["running", "waiting_for_dependency"]
+      dest: "failed"
+      
+    - trigger: "cancel_task"
+      source: ["queued", "running", "waiting_for_dependency"]
+      dest: "cancelled"
+      
+    - trigger: "reset_task"
+      source: ["completed", "failed", "cancelled"]
+      dest: "idle"
+
+# Celery 配置
+celery:
+  broker_url: "redis://redis:6379/0"
+  result_backend: "redis://redis:6379/0"
+  task_serializer: "json"
+  accept_content: ["json"]
+  result_serializer: "json"
+  timezone: "Asia/Taipei"
+  enable_utc: true
+  
+  # 任務路由
+  task_routes:
+    "agent_tasks.fetcher.*": {"queue": "fetcher_queue"}
+    "agent_tasks.summarizer.*": {"queue": "summarizer_queue"}
+    "agent_tasks.analyzer.*": {"queue": "analyzer_queue"}
+    "agent_tasks.coordinator.*": {"queue": "coordinator_queue"}
+    "agent_tasks.responder.*": {"queue": "responder_queue"}
+  
+  # 工作者配置
+  worker_config:
+    concurrency: 4
+    max_tasks_per_child: 1000
+    task_soft_time_limit: 300
+    task_time_limit: 600
+
+# 監控配置
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    metrics_path: "/metrics"
+    
+  health_checks:
+    enabled: true
+    interval_seconds: 30
+    timeout_seconds: 10
+    
+  logging:
+    level: "INFO"
+    format: "json"
+    include_task_metadata: true
+    
+# 安全配置
+security:
+  authentication:
+    required: false
+    method: "token"
+    
+  authorization:
+    enabled: false
+    role_based: false
+    
+  encryption:
+    in_transit: false
+    at_rest: false

@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Moda Vibe Code - AutoGen Teams Frontend</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      background-color: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+    #response {
+      margin-top: 1rem;
+      padding: 1rem;
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-height: 100px;
+      white-space: pre-wrap;
+    }
+    .status-panel {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .status-header {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      color: #333;
+    }
+    .service-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #eee;
+    }
+    .service-status:last-child {
+      border-bottom: none;
+    }
+    .service-name {
+      font-weight: 500;
+    }
+    .status-indicator {
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      font-size: 0.875rem;
+      font-weight: bold;
+    }
+    .status-healthy {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .status-unhealthy {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .status-unknown {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+    .refresh-btn {
+      margin-left: 1rem;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .refresh-btn:hover {
+      background-color: #5a6268;
+    }
+    #conversationPanel {
+      margin-top: 2rem;
+      padding: 1rem;
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    #conversationPanel h3 {
+      margin-top: 0;
+      color: #333;
+      border-bottom: 2px solid #28a745;
+      padding-bottom: 0.5rem;
+    }
+    .conversation-message {
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      border-radius: 4px;
+      border-left: 4px solid #ddd;
+    }
+    .conversation-message .agent-name {
+      font-weight: bold;
+      color: #0078d4;
+      margin-bottom: 0.5rem;
+    }
+    .conversation-message .message-content {
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .agent-fetcher { border-left-color: #ff6b6b; }
+    .agent-summarizer { border-left-color: #4ecdc4; }
+    .agent-analyzer { border-left-color: #45b7d1; }
+    .agent-coordinator { border-left-color: #96ceb4; }
+    .agent-responder { border-left-color: #feca57; }
+    .agent-system { border-left-color: #6c757d; }
+    .conversation-stats {
+      background-color: #f8f9fa;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+    
+    /* Enhanced agent visualization */
+    .agent-avatar {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      text-align: center;
+      line-height: 24px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+    }
+    
+    .avatar-fetcher { background-color: #ff6b6b; }
+    .avatar-summarizer { background-color: #4ecdc4; }
+    .avatar-analyzer { background-color: #45b7d1; }
+    .avatar-coordinator { background-color: #96ceb4; }
+    .avatar-responder { background-color: #feca57; }
+    .avatar-system { background-color: #6c757d; }
+    
+    .agent-role-description {
+      font-size: 0.75rem;
+      color: #6c757d;
+      font-style: italic;
+      margin-bottom: 0.25rem;
+    }
+    
+    .message-timestamp {
+      font-size: 0.7rem;
+      color: #999;
+      float: right;
+    }
+    
+    .conversation-message:hover {
+      background-color: #f8f9fa;
+      cursor: pointer;
+      transform: translateY(-1px);
+      transition: all 0.2s ease;
+    }
+    
+    .conversation-flow {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+      background: linear-gradient(90deg, #e3f2fd 0%, #f3e5f5 100%);
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+    
+    .flow-arrow {
+      margin: 0 0.5rem;
+      color: #666;
+    }
+    
+    .agent-status-panel {
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .agent-status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.5rem;
+    }
+    
+    .agent-status-item {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem;
+      background: white;
+      border-radius: 3px;
+      border-left: 3px solid #ddd;
+    }
+    
+    .status-active { border-left-color: #28a745; }
+    .status-waiting { border-left-color: #ffc107; }
+    .status-completed { border-left-color: #6c757d; }
+    
+    /* Task Control Panel */
+    .task-control-panel {
+      background-color: white;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    
+    .task-progress {
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background-color: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background-color: #28a745;
+      transition: width 0.3s ease;
+    }
+    
+    .cancel-btn {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    
+    .cancel-btn:hover {
+      background-color: #c82333;
+    }
+    
+    .cancel-btn:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+    }
+    
+    /* Error Display Enhancement */
+    .error-panel {
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      padding: 1rem;
+      margin: 1rem 0;
+      color: #721c24;
+    }
+    
+    .error-title {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    
+    .error-details {
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+    
+    .warning-panel {
+      background-color: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 4px;
+      padding: 1rem;
+      margin: 1rem 0;
+      color: #856404;
+    }
+    
+    .success-panel {
+      background-color: #d4edda;
+      border: 1px solid #c3e6cb;
+      border-radius: 4px;
+      padding: 1rem;
+      margin: 1rem 0;
+      color: #155724;
+    }
+    
+    /* Log Panel */
+    .log-panel {
+      background-color: white;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 1rem;
+      margin-top: 2rem;
+      display: none;
+    }
+    
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #dee2e6;
+      padding-bottom: 0.5rem;
+    }
+    
+    .log-controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .log-filter {
+      padding: 0.25rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-size: 0.875rem;
+    }
+    
+    .log-entry {
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.8rem;
+      padding: 0.5rem;
+      border-bottom: 1px solid #f1f3f5;
+      display: flex;
+      align-items: flex-start;
+    }
+    
+    .log-timestamp {
+      color: #6c757d;
+      margin-right: 0.5rem;
+      min-width: 80px;
+    }
+    
+    .log-level {
+      padding: 0.125rem 0.25rem;
+      border-radius: 2px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      margin-right: 0.5rem;
+      min-width: 50px;
+      text-align: center;
+    }
+    
+    .log-level-info { background-color: #cce5ff; color: #004085; }
+    .log-level-warn { background-color: #fff3cd; color: #856404; }
+    .log-level-error { background-color: #f8d7da; color: #721c24; }
+    .log-level-debug { background-color: #e2e3e5; color: #495057; }
+    
+    .log-message {
+      flex: 1;
+      word-break: break-word;
+    }
+    
+    /* Performance Metrics Panel */
+    .metrics-panel {
+      background-color: white;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 1rem;
+      margin-top: 1rem;
+      display: none;
+    }
+    
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    
+    .metric-item {
+      background-color: #f8f9fa;
+      padding: 1rem;
+      border-radius: 4px;
+      text-align: center;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #0078d4;
+    }
+    
+    .metric-label {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+    
+    /* Button enhancements */
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    
+    .btn-secondary:hover {
+      background-color: #5a6268;
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #0078d4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 0.5rem;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Workflow Panel Styles */
+    .workflow-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+    }
+    
+    .stat-item {
+      text-align: center;
+      padding: 0.5rem;
+      background: white;
+      border-radius: 4px;
+      border-left: 3px solid #0078d4;
+    }
+    
+    .stat-value {
+      display: block;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #0078d4;
+    }
+    
+    .stat-label {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+    
+    .workflow-tasks {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .workflow-task-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      border-left: 4px solid #ddd;
+    }
+    
+    .workflow-task-item.state-idle { border-left-color: #6c757d; }
+    .workflow-task-item.state-queued { border-left-color: #ffc107; }
+    .workflow-task-item.state-running { border-left-color: #007bff; }
+    .workflow-task-item.state-waiting_for_dependency { border-left-color: #fd7e14; }
+    .workflow-task-item.state-completed { border-left-color: #28a745; }
+    .workflow-task-item.state-failed { border-left-color: #dc3545; }
+    .workflow-task-item.state-cancelled { border-left-color: #6c757d; }
+    .workflow-task-item.state-retrying { border-left-color: #17a2b8; }
+    
+    .task-info {
+      flex: 1;
+    }
+    
+    .task-id {
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 0.25rem;
+    }
+    
+    .task-details {
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+    
+    .task-state {
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-right: 0.5rem;
+    }
+    
+    .task-state.idle { background-color: #e9ecef; color: #6c757d; }
+    .task-state.queued { background-color: #fff3cd; color: #856404; }
+    .task-state.running { background-color: #cce5ff; color: #004085; }
+    .task-state.waiting_for_dependency { background-color: #ffeaa7; color: #b8860b; }
+    .task-state.completed { background-color: #d4edda; color: #155724; }
+    .task-state.failed { background-color: #f8d7da; color: #721c24; }
+    .task-state.cancelled { background-color: #e9ecef; color: #6c757d; }
+    .task-state.retrying { background-color: #bee5eb; color: #0c5460; }
+    
+    .task-actions {
+      display: flex;
+      gap: 0.25rem;
+    }
+    
+    .task-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      background-color: #6c757d;
+      color: white;
+    }
+    
+    .task-btn:hover {
+      background-color: #5a6268;
+    }
+    
+    .task-btn.btn-start { background-color: #28a745; }
+    .task-btn.btn-start:hover { background-color: #218838; }
+    .task-btn.btn-cancel { background-color: #dc3545; }
+    .task-btn.btn-cancel:hover { background-color: #c82333; }
+    .task-btn.btn-retry { background-color: #17a2b8; }
+    .task-btn.btn-retry:hover { background-color: #138496; }
+    
+    .task-progress {
+      width: 100px;
+      height: 6px;
+      background-color: #e9ecef;
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 0.25rem 0.5rem;
+    }
+    
+    .task-progress-fill {
+      height: 100%;
+      background-color: #28a745;
+      transition: width 0.3s ease;
+    }
+    
+    /* Create Workflow Dialog */
+    .dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .dialog {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      min-width: 400px;
+      max-width: 600px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dialog h3 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      color: #333;
+    }
+    
+    .dialog-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .dialog-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 1rem;
+    }
+    
+    /* System Health Styles */
+    .health-services {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .health-service {
+      padding: 1rem;
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      border-left: 4px solid #ddd;
+    }
+    
+    .health-service.healthy { border-left-color: #28a745; }
+    .health-service.degraded { border-left-color: #ffc107; }
+    .health-service.error { border-left-color: #dc3545; }
+    .health-service.unavailable { border-left-color: #6c757d; }
+    
+    .health-service-name {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    
+    .health-service-status {
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 Moda Vibe Code - AutoGen Teams Frontend</h1>
+  
+  <!-- System Health Dashboard -->
+  <div class="status-panel">
+    <div class="status-header">
+      🏥 System Health Dashboard
+      <button class="refresh-btn" onclick="refreshSystemHealth()">Refresh</button>
+    </div>
+    <div id="systemHealth">
+      <div class="service-status">
+        <span class="service-name">Loading...</span>
+        <span class="status-indicator status-unknown">Unknown</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflow Visualization Panel -->
+  <div id="workflowPanel" class="status-panel" style="display: none;">
+    <div class="status-header">
+      🔄 Workflow Management
+      <div style="display: flex; gap: 0.5rem;">
+        <button class="refresh-btn" onclick="refreshWorkflowTasks()">Refresh</button>
+        <button class="btn-secondary" onclick="showCreateWorkflowDialog()">Create Task</button>
+      </div>
+    </div>
+    
+    <!-- Workflow Statistics -->
+    <div id="workflowStats" class="workflow-stats">
+      <div class="stat-item">
+        <span class="stat-value" id="totalTasks">0</span>
+        <span class="stat-label">Total Tasks</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="activeTasks">0</span>
+        <span class="stat-label">Active Tasks</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="completedTasks">0</span>
+        <span class="stat-label">Completed</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="failedTasks">0</span>
+        <span class="stat-label">Failed</span>
+      </div>
+    </div>
+    
+    <!-- Active Workflow Tasks -->
+    <div id="workflowTasks" class="workflow-tasks">
+      <!-- Tasks will be populated here -->
+    </div>
+  </div>
+
+  <!-- MCP Services Status Panel -->
+  <div class="status-panel">
+    <div class="status-header">
+      🔗 MCP Services Status
+      <button class="refresh-btn" onclick="refreshMCPStatus()">Refresh</button>
+    </div>
+    <div id="mcpStatus">
+      <div class="service-status">
+        <span class="service-name">Loading...</span>
+        <span class="status-indicator status-unknown">Unknown</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Task Control Panel -->
+  <div id="taskControlPanel" class="task-control-panel">
+    <h4>🎯 Task Control</h4>
+    <div class="task-progress">
+      <div>Current Task: <span id="currentTaskName">None</span></div>
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill" style="width: 0%;"></div>
+      </div>
+      <div style="font-size: 0.875rem; color: #6c757d; margin-top: 0.25rem;">
+        Progress: <span id="progressText">0%</span> | Estimated time: <span id="estimatedTime">Unknown</span>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button id="cancelTaskBtn" class="cancel-btn" disabled>Cancel Task</button>
+      <button id="pauseTaskBtn" class="btn-secondary" disabled>Pause</button>
+      <button id="resumeTaskBtn" class="btn-secondary" disabled style="display: none;">Resume</button>
+    </div>
+  </div>
+  
+  <form id="promptForm">
+    <label for="prompt">Enter your prompt:</label>
+    <textarea id="prompt" name="prompt" rows="5" required></textarea>
+    <div class="btn-group" style="margin-top: 1rem;">
+      <button type="submit" id="azureBtn">
+        <span id="azureSpinner" class="spinner" style="display: none;"></span>
+        Send to Azure OpenAI
+      </button>
+      <button type="button" id="multiAgentBtn" style="background-color: #28a745;">
+        <span id="multiAgentSpinner" class="spinner" style="display: none;"></span>
+        Send to Multi-Agent System
+      </button>
+      <button type="button" id="showWorkflowBtn" class="btn-secondary">Show Workflows</button>
+      <button type="button" id="showLogsBtn" class="btn-secondary">Show Logs</button>
+      <button type="button" id="showMetricsBtn" class="btn-secondary">Show Metrics</button>
+    </div>
+  </form>
+  
+  <div id="response"></div>
+  
+  <!-- Performance Metrics Panel -->
+  <div id="metricsPanel" class="metrics-panel">
+    <div class="log-header">
+      <h4>📊 Performance Metrics</h4>
+      <div class="log-controls">
+        <button class="btn-secondary" onclick="refreshMetrics()">Refresh</button>
+        <button class="btn-secondary" onclick="exportMetrics()">Export</button>
+      </div>
+    </div>
+    <div id="metricsGrid" class="metrics-grid">
+      <div class="metric-item">
+        <div class="metric-value" id="avgResponseTime">--</div>
+        <div class="metric-label">Avg Response Time (ms)</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-value" id="totalRequests">--</div>
+        <div class="metric-label">Total Requests</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-value" id="successRate">--</div>
+        <div class="metric-label">Success Rate (%)</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-value" id="activeAgents">--</div>
+        <div class="metric-label">Active Agents</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Log Panel -->
+  <div id="logPanel" class="log-panel">
+    <div class="log-header">
+      <h4>📋 System Logs</h4>
+      <div class="log-controls">
+        <select id="logLevelFilter" class="log-filter">
+          <option value="all">All Levels</option>
+          <option value="error">Error</option>
+          <option value="warn">Warning</option>
+          <option value="info">Info</option>
+          <option value="debug">Debug</option>
+        </select>
+        <input type="text" id="logSearchFilter" class="log-filter" placeholder="Search logs...">
+        <button class="btn-secondary" onclick="clearLogs()">Clear</button>
+        <button class="btn-secondary" onclick="exportLogs()">Export</button>
+      </div>
+    </div>
+    <div id="logEntries" style="max-height: 300px; overflow-y: auto;">
+      <!-- Log entries will be populated here -->
+    </div>
+  </div>
+  
+  <!-- Multi-Agent Conversation History -->
+  <div id="conversationPanel" style="display: none;">
+    <h3>Agent Conversation History</h3>
+    <div id="conversationHistory"></div>
+  </div>
+
+  <!-- Create Workflow Dialog -->
+  <div id="createWorkflowDialog" class="dialog-overlay">
+    <div class="dialog">
+      <h3>Create New Workflow Task</h3>
+      <form id="createWorkflowForm" class="dialog-form">
+        <div>
+          <label for="workflowTaskId">Task ID (optional)</label>
+          <input type="text" id="workflowTaskId" placeholder="Leave empty for auto-generation">
+        </div>
+        <div>
+          <label for="workflowName">Workflow Name</label>
+          <select id="workflowName">
+            <option value="default">Default Workflow</option> <!-- User-facing text -->
+            <option value="data_analysis">Data Analysis</option>
+            <option value="content_generation">Content Generation</option>
+            <option value="research_synthesis">Research Synthesis</option>
+          </select>
+        </div>
+        <div>
+          <label for="workflowUserInput">User Input</label>
+          <textarea id="workflowUserInput" rows="3" placeholder="Describe the task..."></textarea>
+        </div>
+        <div>
+          <label for="workflowPriority">Priority</label>
+          <select id="workflowPriority">
+            <option value="low">Low</option>
+            <option value="normal" selected>Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn-secondary" onclick="hideCreateWorkflowDialog()">Cancel</button>
+          <button type="submit" style="background-color: #28a745;">Create Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    console.log('Script tag executing');
+    const form = document.getElementById('promptForm');
+    const responseDiv = document.getElementById('response');
+    const mcpStatusDiv = document.getElementById('mcpStatus');
+    
+    // Global variables for task management
+    let currentTaskId = null;
+    let taskProgressInterval = null;
+    let logs = [];
+    let metrics = {
+      avgResponseTime: 0,
+      totalRequests: 0,
+      successRate: 100,
+      activeAgents: 0
+    };
+    
+    // Workflow management variables
+    let workflowTasks = [];
+    let workflowStats = {
+      totalTasks: 0,
+      activeTasks: 0,
+      completedTasks: 0,
+      failedTasks: 0
+    };
+
+    // Initialize application
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM fully loaded and parsed');
+      refreshSystemHealth();
+      refreshMCPStatus();
+      initializeEventListeners();
+      initializeSampleData();
+      
+      // Refresh status every 30 seconds
+      setInterval(refreshSystemHealth, 30000);
+      setInterval(refreshMCPStatus, 30000);
+      // Refresh metrics every 10 seconds
+      setInterval(updateMetricsDisplay, 10000);
+      // Refresh workflow tasks every 15 seconds
+      setInterval(refreshWorkflowTasks, 15000);
+    });
+
+    function initializeEventListeners() {
+      // Show/Hide panels
+      document.getElementById('showLogsBtn').addEventListener('click', toggleLogPanel);
+      document.getElementById('showMetricsBtn').addEventListener('click', toggleMetricsPanel);
+      document.getElementById('showWorkflowBtn').addEventListener('click', toggleWorkflowPanel);
+      
+      // Task control
+      document.getElementById('cancelTaskBtn').addEventListener('click', cancelCurrentTask);
+      document.getElementById('pauseTaskBtn').addEventListener('click', pauseCurrentTask);
+      document.getElementById('resumeTaskBtn').addEventListener('click', resumeCurrentTask);
+      
+      // Log filtering
+      document.getElementById('logLevelFilter').addEventListener('change', filterLogs);
+      document.getElementById('logSearchFilter').addEventListener('input', filterLogs);
+      
+      // Workflow form
+      document.getElementById('createWorkflowForm').addEventListener('submit', createWorkflowTask);
+    }
+
+    function initializeSampleData() {
+      // Add some sample logs for demonstration
+      addLog('info', 'Application initialized successfully');
+      addLog('debug', 'MCP servers connection established');
+      
+      // Initialize metrics
+      updateMetrics({
+        avgResponseTime: 0,
+        totalRequests: 0,
+        successRate: 100,
+        activeAgents: 5
+      });
+    }
+
+    async function refreshMCPStatus() {
+      try {
+        const response = await fetch('/mcp/status');
+        if (!response.ok) {
+          console.error(`Error fetching MCP status: ${response.status} ${response.statusText}`, await response.text());
+          mcpStatusDiv.innerHTML = `<div class="service-status"><span class="service-name">Error loading status: ${response.status}</span><span class="status-indicator status-unhealthy">Error</span></div>`;
+          return;
+        }
+        const data = await response.json();
+        
+        if (data.mcp_servers && Array.isArray(data.mcp_servers)) {
+          displayMCPStatus(data.mcp_servers);
+        } else {
+          console.warn('MCP status data is not in expected format:', data);
+          mcpStatusDiv.innerHTML = '<div class="service-status"><span class="service-name">Error loading status</span><span class="status-indicator status-unhealthy">Format Error</span></div>';
+        }
+      } catch (error) {
+        console.error('Network error fetching MCP status:', error.message, error);
+        mcpStatusDiv.innerHTML = '<div class="service-status"><span class="service-name">Connection Error</span><span class="status-indicator status-unhealthy">Offline</span></div>';
+      }
+    }
+
+    function displayMCPStatus(servers) {
+      if (servers.length === 0) {
+        mcpStatusDiv.innerHTML = '<div class="service-status"><span class="service-name">No MCP servers configured</span><span class="status-indicator status-unknown">N/A</span></div>';
+        return;
+      }
+
+      const statusHtml = servers.map(server => {
+        const statusClass = getStatusClass(server.status);
+        const statusText = getStatusText(server.status);
+        
+        return `
+          <div class="service-status">
+            <span class="service-name">${server.name}</span>
+            <span class="status-indicator ${statusClass}">${statusText}</span>
+          </div>
+        `;
+      }).join('');
+      
+      mcpStatusDiv.innerHTML = statusHtml;
+    }
+
+    function getStatusClass(status) {
+      switch (status) {
+        case 'healthy':
+          return 'status-healthy';
+        case 'unhealthy':
+        case 'timeout':
+        case 'unreachable':
+        case 'error':
+          return 'status-unhealthy';
+        default:
+          return 'status-unknown';
+      }
+    }
+
+    function getStatusText(status) {
+      switch (status) {
+        case 'healthy':
+          return 'Online';
+        case 'unhealthy':
+          return 'Unhealthy';
+        case 'timeout':
+          return 'Timeout';
+        case 'unreachable':
+          return 'Offline';
+        case 'error':
+          return 'Error';
+        default:
+          return 'Unknown';
+      }
+    }
+
+    // Azure OpenAI form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await sendToAzureOpenAI();
+    });
+
+    // Multi-Agent button click
+    document.getElementById('multiAgentBtn').addEventListener('click', async () => {
+      await sendToMultiAgent();
+    });
+
+    async function sendToAzureOpenAI() {
+      const prompt = form.prompt.value.trim();
+      if (!prompt) return;
+
+      responseDiv.textContent = "Loading...";
+      document.getElementById('azureBtn').disabled = true;
+      hideConversationPanel();
+
+      try {
+        const res = await fetch('/azure-openai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        if (data.response) {
+          responseDiv.textContent = data.response;
+        } else if (data.error) {
+          responseDiv.textContent = "Error: " + data.error;
+        } else {
+          responseDiv.textContent = "Unexpected response";
+        }
+      } catch (err) {
+        responseDiv.textContent = "Fetch error: " + err.message;
+      } finally {
+        document.getElementById('azureBtn').disabled = false;
+      }
+    }
+
+    async function sendToMultiAgent() {
+      const prompt = form.prompt.value.trim();
+      if (!prompt) return;
+
+      responseDiv.textContent = "Multi-Agent System Processing...";
+      document.getElementById('multiAgentBtn').disabled = true;
+
+      try {
+        const res = await fetch('/multi-agent/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            content: prompt,
+            recipient_agent_type: "coordinator"
+          })
+        });
+        const data = await res.json();
+        
+        if (data.final_response) {
+          responseDiv.textContent = data.final_response;
+          
+          if (data.conversation_history && data.conversation_history.length > 0) {
+            displayConversationHistory(data.conversation_history, data.total_messages);
+          }
+        } else if (data.error) {
+          responseDiv.textContent = "Error: " + data.error;
+        } else {
+          responseDiv.textContent = "Unexpected response from multi-agent system";
+        }
+      } catch (err) {
+        responseDiv.textContent = "Fetch error: " + err.message;
+      } finally {
+        document.getElementById('multiAgentBtn').disabled = false;
+      }
+    }
+
+    function displayConversationHistory(history, totalMessages) {
+      const conversationPanel = document.getElementById('conversationPanel');
+      const conversationHistory = document.getElementById('conversationHistory');
+      
+      // Create agent status panel
+      const agentStatusHtml = createAgentStatusPanel(history);
+      
+      // Create conversation flow visualization
+      const flowHtml = createConversationFlow(history);
+      
+      // Create stats section
+      const statsHtml = `
+        <div class="conversation-stats">
+          📊 Total messages: ${totalMessages} | 🤖 Agents participated: ${getUniqueAgents(history).length} | 🔄 Conversation depth: ${history.length} steps
+        </div>
+      `;
+      
+      // Create enhanced conversation messages
+      const messagesHtml = history.map((message, index) => {
+        const agentClass = `agent-${message.agent}`;
+        const avatarClass = `avatar-${message.agent}`;
+        const roleDescription = getAgentRoleDescription(message.agent);
+        const timestamp = new Date().toLocaleTimeString(); // Mock timestamp
+        
+        return `
+          <div class="conversation-message ${agentClass}" onclick="toggleMessageDetails(${index})">
+            <div class="agent-name">
+              <span class="agent-avatar ${avatarClass}">${getAgentInitial(message.agent)}</span>
+              ${capitalizeFirst(message.agent)} Agent
+              <span class="message-timestamp">${timestamp}</span>
+            </div>
+            <div class="agent-role-description">${roleDescription}</div>
+            <div class="message-content" id="message-${index}">${escapeHtml(message.content)}</div>
+          </div>
+        `;
+      }).join('');
+      
+      conversationHistory.innerHTML = agentStatusHtml + flowHtml + statsHtml + messagesHtml;
+      conversationPanel.style.display = 'block';
+    }
+
+    function createAgentStatusPanel(history) {
+      const uniqueAgents = getUniqueAgents(history);
+      const agentStatuses = uniqueAgents.map(agent => {
+        const messageCount = history.filter(msg => msg.agent === agent).length;
+        const statusClass = messageCount > 0 ? 'status-completed' : 'status-waiting';
+        const avatarClass = `avatar-${agent}`;
+        
+        return `
+          <div class="agent-status-item ${statusClass}">
+            <span class="agent-avatar ${avatarClass}">${getAgentInitial(agent)}</span>
+            <div>
+              <strong>${capitalizeFirst(agent)}</strong><br>
+              <small>${messageCount} messages</small>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      return `
+        <div class="agent-status-panel">
+          <h4>👥 Agent Participation Status</h4>
+          <div class="agent-status-grid">
+            ${agentStatuses}
+          </div>
+        </div>
+      `;
+    }
+
+    function createConversationFlow(history) {
+      if (history.length < 2) return '';
+      
+      const flow = history.slice(0, Math.min(5, history.length)).map(msg => 
+        `<span class="agent-avatar avatar-${msg.agent}">${getAgentInitial(msg.agent)}</span>`
+      ).join('<span class="flow-arrow">→</span>');
+      
+      const moreIndicator = history.length > 5 ? '<span class="flow-arrow">→</span><span>...</span>' : '';
+      
+      return `
+        <div class="conversation-flow">
+          <strong>🔄 Conversation Flow:</strong> ${flow}${moreIndicator}
+        </div>
+      `;
+    }
+
+    function getAgentRoleDescription(agent) {
+      const roles = {
+        'fetcher': '🔍 Retrieves and gathers information from various sources',
+        'summarizer': '📝 Condenses and summarizes complex information',
+        'analyzer': '📊 Analyzes patterns, trends and provides insights',
+        'coordinator': '🎯 Manages workflow and coordinates between agents',
+        'responder': '💬 Synthesizes final responses for user queries',
+        'system': '⚙️ System-level operations and error handling'
+      };
+      return roles[agent] || '🤖 Specialized AI agent';
+    }
+
+    function getAgentInitial(agent) {
+      const initials = {
+        'fetcher': 'F',
+        'summarizer': 'S',
+        'analyzer': 'A',
+        'coordinator': 'C',
+        'responder': 'R',
+        'system': '⚙'
+      };
+      return initials[agent] || '?';
+    }
+
+    function toggleMessageDetails(index) {
+      const messageElement = document.getElementById(`message-${index}`);
+      const isExpanded = messageElement.classList.contains('expanded');
+      
+      if (isExpanded) {
+        messageElement.classList.remove('expanded');
+        messageElement.style.maxHeight = '100px';
+        messageElement.style.overflow = 'hidden';
+      } else {
+        messageElement.classList.add('expanded');
+        messageElement.style.maxHeight = 'none';
+        messageElement.style.overflow = 'visible';
+      }
+    }
+
+    function hideConversationPanel() {
+      document.getElementById('conversationPanel').style.display = 'none';
+    }
+
+    function getUniqueAgents(history) {
+      return [...new Set(history.map(msg => msg.agent))];
+    }
+
+    function capitalizeFirst(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Task Management Functions
+    function startTask(taskName, estimatedDuration = 'Unknown') {
+      currentTaskId = Date.now();
+      document.getElementById('currentTaskName').textContent = taskName;
+      document.getElementById('estimatedTime').textContent = estimatedDuration;
+      document.getElementById('progressText').textContent = '0%';
+      document.getElementById('progressFill').style.width = '0%';
+      
+      document.getElementById('taskControlPanel').style.display = 'block';
+      document.getElementById('cancelTaskBtn').disabled = false;
+      document.getElementById('pauseTaskBtn').disabled = false;
+      
+      addLog('info', `Task started: ${taskName}`);
+      
+      // Mock progress updates
+      let progress = 0;
+      taskProgressInterval = setInterval(() => {
+        if (progress < 100 && currentTaskId) {
+          progress += Math.random() * 10;
+          progress = Math.min(progress, 100);
+          updateTaskProgress(progress);
+        } else {
+          clearInterval(taskProgressInterval);
+          finishTask();
+        }
+      }, 1000);
+    }
+
+    function updateTaskProgress(progress) {
+      document.getElementById('progressText').textContent = `${Math.round(progress)}%`;
+      document.getElementById('progressFill').style.width = `${progress}%`;
+    }
+
+    function finishTask() {
+      if (currentTaskId) {
+        addLog('info', `Task completed: ${document.getElementById('currentTaskName').textContent}`);
+        setTimeout(() => {
+          document.getElementById('taskControlPanel').style.display = 'none';
+          currentTaskId = null;
+        }, 2000);
+      }
+    }
+
+    function cancelCurrentTask() {
+      if (currentTaskId && taskProgressInterval) {
+        clearInterval(taskProgressInterval);
+        addLog('warn', `Task cancelled: ${document.getElementById('currentTaskName').textContent}`);
+        document.getElementById('taskControlPanel').style.display = 'none';
+        currentTaskId = null;
+        
+        // Notify backend about cancellation (if API exists)
+        // fetch('/api/cancel-task', { method: 'POST', body: JSON.stringify({ taskId: currentTaskId }) });
+      }
+    }
+
+    function pauseCurrentTask() {
+      if (taskProgressInterval) {
+        clearInterval(taskProgressInterval);
+        taskProgressInterval = null;
+        document.getElementById('pauseTaskBtn').style.display = 'none';
+        document.getElementById('resumeTaskBtn').style.display = 'inline-block';
+        addLog('info', 'Task paused');
+      }
+    }
+
+    function resumeCurrentTask() {
+      if (currentTaskId && !taskProgressInterval) {
+        // Resume progress simulation
+        let currentProgress = parseFloat(document.getElementById('progressText').textContent);
+        taskProgressInterval = setInterval(() => {
+          if (currentProgress < 100 && currentTaskId) {
+            currentProgress += Math.random() * 10;
+            currentProgress = Math.min(currentProgress, 100);
+            updateTaskProgress(currentProgress);
+          } else {
+            clearInterval(taskProgressInterval);
+            finishTask();
+          }
+        }, 1000);
+        
+        document.getElementById('pauseTaskBtn').style.display = 'inline-block';
+        document.getElementById('resumeTaskBtn').style.display = 'none';
+        addLog('info', 'Task resumed');
+      }
+    }
+
+    // Log Management Functions
+    function addLog(level, message) {
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = {
+        timestamp,
+        level,
+        message,
+        id: Date.now() + Math.random()
+      };
+      
+      logs.unshift(logEntry); // Add to beginning
+      if (logs.length > 1000) logs.pop(); // Keep only last 1000 logs
+      
+      displayLogs();
+    }
+
+    function displayLogs() {
+      const logEntries = document.getElementById('logEntries');
+      const levelFilter = document.getElementById('logLevelFilter').value;
+      const searchFilter = document.getElementById('logSearchFilter').value.toLowerCase();
+      
+      let filteredLogs = logs;
+      
+      if (levelFilter !== 'all') {
+        filteredLogs = filteredLogs.filter(log => log.level === levelFilter);
+      }
+      
+      if (searchFilter) {
+        filteredLogs = filteredLogs.filter(log => 
+          log.message.toLowerCase().includes(searchFilter)
+        );
+      }
+      
+      const logHtml = filteredLogs.slice(0, 100).map(log => `
+        <div class="log-entry">
+          <span class="log-timestamp">${log.timestamp}</span>
+          <span class="log-level log-level-${log.level}">${log.level.toUpperCase()}</span>
+          <span class="log-message">${escapeHtml(log.message)}</span>
+        </div>
+      `).join('');
+      
+      logEntries.innerHTML = logHtml || '<div class="log-entry"><span class="log-message">No logs match the current filter</span></div>';
+    }
+
+    function filterLogs() {
+      displayLogs();
+    }
+
+    function clearLogs() {
+      logs = [];
+      displayLogs();
+      addLog('info', 'Logs cleared');
+    }
+
+    function exportLogs() {
+      const logData = logs.map(log => `${log.timestamp} [${log.level.toUpperCase()}] ${log.message}`).join('\n');
+      const blob = new Blob([logData], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `system-logs-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function toggleLogPanel() {
+      const panel = document.getElementById('logPanel');
+      const btn = document.getElementById('showLogsBtn');
+      
+      if (panel.style.display === 'none' || !panel.style.display) {
+        panel.style.display = 'block';
+        btn.textContent = 'Hide Logs';
+        displayLogs();
+      } else {
+        panel.style.display = 'none';
+        btn.textContent = 'Show Logs';
+      }
+    }
+
+    // Metrics Management Functions
+    function updateMetrics(newMetrics) {
+      metrics = { ...metrics, ...newMetrics };
+      updateMetricsDisplay();
+    }
+
+    function updateMetricsDisplay() {
+      document.getElementById('avgResponseTime').textContent = metrics.avgResponseTime || '--';
+      document.getElementById('totalRequests').textContent = metrics.totalRequests || '--';
+      document.getElementById('successRate').textContent = metrics.successRate ? `${metrics.successRate}%` : '--';
+      document.getElementById('activeAgents').textContent = metrics.activeAgents || '--';
+    }
+
+    function refreshMetrics() {
+      // In a real implementation, this would fetch from backend
+      // For now, simulate some metrics
+      const mockMetrics = {
+        avgResponseTime: Math.round(500 + Math.random() * 1000),
+        totalRequests: metrics.totalRequests + Math.floor(Math.random() * 5),
+        successRate: Math.round(85 + Math.random() * 15),
+        activeAgents: Math.floor(3 + Math.random() * 3)
+      };
+      
+      updateMetrics(mockMetrics);
+      addLog('info', 'Metrics refreshed');
+    }
+
+    function exportMetrics() {
+      const metricsData = JSON.stringify(metrics, null, 2);
+      const blob = new Blob([metricsData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `performance-metrics-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function toggleMetricsPanel() {
+      const panel = document.getElementById('metricsPanel');
+      const btn = document.getElementById('showMetricsBtn');
+      
+      if (panel.style.display === 'none' || !panel.style.display) {
+        panel.style.display = 'block';
+        btn.textContent = 'Hide Metrics';
+        refreshMetrics();
+      } else {
+        panel.style.display = 'none';
+        btn.textContent = 'Show Metrics';
+      }
+    }
+
+    // Enhanced Error Handling
+    function displayError(title, message, details = null) {
+      const errorHtml = `
+        <div class="error-panel">
+          <div class="error-title">❌ ${title}</div>
+          <div>${message}</div>
+          ${details ? `<div class="error-details">Details: ${details}</div>` : ''}
+        </div>
+      `;
+      
+      responseDiv.innerHTML = errorHtml;
+      addLog('error', `${title}: ${message}`);
+    }
+
+    function displayWarning(message) {
+      const warningHtml = `
+        <div class="warning-panel">
+          <div>⚠️ ${message}</div>
+        </div>
+      `;
+      
+      responseDiv.innerHTML = warningHtml;
+      addLog('warn', message);
+    }
+
+    function displaySuccess(message) {
+      const successHtml = `
+        <div class="success-panel">
+          <div>✅ ${message}</div>
+        </div>
+      `;
+      
+      responseDiv.innerHTML = successHtml;
+      addLog('info', message);
+    }
+
+    // Enhanced request functions with better error handling and progress tracking
+    async function sendToAzureOpenAI() {
+      const prompt = form.prompt.value.trim();
+      if (!prompt) return;
+
+      const startTime = Date.now();
+      startTask('Azure OpenAI Request', '5-10 seconds');
+      
+      document.getElementById('azureSpinner').style.display = 'inline-block';
+      document.getElementById('azureBtn').disabled = true;
+      hideConversationPanel();
+
+      try {
+        responseDiv.innerHTML = '<div>🔄 Sending request to Azure OpenAI...</div>';
+        addLog('info', 'Azure OpenAI request started');
+        
+        const res = await fetch('/azure-openai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ prompt })
+        });
+        
+        const data = await res.json();
+        const responseTime = Date.now() - startTime;
+        
+        if (data.response) {
+          responseDiv.textContent = data.response;
+          addLog('info', `Azure OpenAI request completed in ${responseTime}ms`);
+          // Show success message without overriding the response content
+          addLog('info', 'Azure OpenAI response received successfully');
+        } else if (data.error) {
+          displayError('Azure OpenAI Error', data.error);
+        } else {
+          displayWarning('Unexpected response format from Azure OpenAI');
+        }
+        
+        // Update metrics
+        updateMetrics({
+          avgResponseTime: Math.round((metrics.avgResponseTime + responseTime) / 2),
+          totalRequests: metrics.totalRequests + 1,
+          successRate: data.response ? Math.min(metrics.successRate + 1, 100) : Math.max(metrics.successRate - 1, 0)
+        });
+        
+      } catch (err) {
+        displayError('Network Error', 'Failed to connect to Azure OpenAI service', err.message);
+        updateMetrics({
+          totalRequests: metrics.totalRequests + 1,
+          successRate: Math.max(metrics.successRate - 5, 0)
+        });
+      } finally {
+        document.getElementById('azureSpinner').style.display = 'none';
+        document.getElementById('azureBtn').disabled = false;
+        finishTask();
+      }
+    }
+
+    async function sendToMultiAgent() {
+      const prompt = form.prompt.value.trim();
+      if (!prompt) return;
+
+      const startTime = Date.now();
+      startTask('Multi-Agent Processing', '10-30 seconds');
+      
+      document.getElementById('multiAgentSpinner').style.display = 'inline-block';
+      document.getElementById('multiAgentBtn').disabled = true;
+
+      try {
+        responseDiv.innerHTML = '<div>🤖 Multi-Agent System processing your request...</div>';
+        addLog('info', 'Multi-Agent request started');
+        
+        const res = await fetch('/multi-agent/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            content: prompt,
+            recipient_agent_type: "coordinator"
+          })
+        });
+        
+        const data = await res.json();
+        const responseTime = Date.now() - startTime;
+        
+        if (data.final_response) {
+          responseDiv.textContent = data.final_response;
+          displaySuccess('Multi-Agent response received successfully');
+          addLog('info', `Multi-Agent request completed in ${responseTime}ms`);
+          
+          if (data.conversation_history && data.conversation_history.length > 0) {
+            displayConversationHistory(data.conversation_history, data.total_messages);
+          }
+        } else if (data.error) {
+          displayError('Multi-Agent Error', data.error);
+        } else {
+          displayWarning('Unexpected response format from Multi-Agent system');
+        }
+        
+        // Update metrics
+        updateMetrics({
+          avgResponseTime: Math.round((metrics.avgResponseTime + responseTime) / 2),
+          totalRequests: metrics.totalRequests + 1,
+          successRate: data.final_response ? Math.min(metrics.successRate + 1, 100) : Math.max(metrics.successRate - 1, 0),
+          activeAgents: data.conversation_history ? getUniqueAgents(data.conversation_history).length : metrics.activeAgents
+        });
+        
+      } catch (err) {
+        displayError('Network Error', 'Failed to connect to Multi-Agent system', err.message);
+        updateMetrics({
+          totalRequests: metrics.totalRequests + 1,
+          successRate: Math.max(metrics.successRate - 5, 0)
+        });
+      } finally {
+        document.getElementById('multiAgentSpinner').style.display = 'none';
+        document.getElementById('multiAgentBtn').disabled = false;
+        finishTask();
+      }
+    }
+
+    // System Health Functions
+    async function refreshSystemHealth() {
+      try {
+        const response = await fetch('/system/health');
+        if (!response.ok) {
+          console.error(`Error fetching system health: ${response.status} ${response.statusText}`, await response.text());
+          document.getElementById('systemHealth').innerHTML = 
+            `<div class="service-status"><span class="service-name">Error: ${response.status}</span><span class="status-indicator status-unhealthy">Error</span></div>`;
+          return;
+        }
+        const data = await response.json();
+        displaySystemHealth(data);
+      } catch (error) {
+        console.error('Network error fetching system health:', error.message, error);
+        document.getElementById('systemHealth').innerHTML = 
+          '<div class="service-status"><span class="service-name">Connection Error</span><span class="status-indicator status-unhealthy">Offline</span></div>';
+      }
+    }
+
+    function displaySystemHealth(healthData) {
+      const systemHealthDiv = document.getElementById('systemHealth');
+      const services = healthData.services || {};
+      
+      let healthHtml = '';
+      for (const [serviceName, serviceData] of Object.entries(services)) {
+        const statusClass = getHealthStatusClass(serviceData.status);
+        const serviceFriendlyName = serviceName.replace('_', ' ').toUpperCase();
+        
+        healthHtml += `
+          <div class="health-service ${statusClass}">
+            <div class="health-service-name">${serviceFriendlyName}</div>
+            <div class="health-service-status">Status: ${serviceData.status}</div>
+            ${serviceData.error ? `<div class="health-service-status" style="color: #dc3545;">Error: ${serviceData.error}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      systemHealthDiv.innerHTML = healthHtml || '<div class="service-status"><span class="service-name">No health data available</span></div>';
+    }
+
+    function getHealthStatusClass(status) {
+      switch (status) {
+        case 'healthy': return 'healthy';
+        case 'degraded': return 'degraded';
+        case 'error': return 'error';
+        case 'unavailable': return 'unavailable';
+        default: return 'unavailable';
+      }
+    }
+
+    // Workflow Management Functions
+    function toggleWorkflowPanel() {
+      const panel = document.getElementById('workflowPanel');
+      const btn = document.getElementById('showWorkflowBtn');
+      
+      if (panel.style.display === 'none' || !panel.style.display) {
+        panel.style.display = 'block';
+        btn.textContent = 'Hide Workflows';
+        refreshWorkflowTasks();
+        refreshWorkflowStatistics();
+      } else {
+        panel.style.display = 'none';
+        btn.textContent = 'Show Workflows';
+      }
+    }
+
+    async function refreshWorkflowTasks() {
+      try {
+        const response = await fetch('/workflow/tasks');
+        const data = await response.json();
+        workflowTasks = data.tasks || [];
+        displayWorkflowTasks();
+        addLog('info', `Loaded ${workflowTasks.length} workflow tasks`);
+      } catch (error) {
+        console.error('Error fetching workflow tasks:', error);
+        addLog('error', `Failed to fetch workflow tasks: ${error.message}`);
+      }
+    }
+
+    async function refreshWorkflowStatistics() {
+      try {
+        const response = await fetch('/workflow/statistics');
+        const data = await response.json();
+        const stats = data.statistics || {};
+        
+        workflowStats = {
+          totalTasks: stats.total_tasks || 0,
+          activeTasks: stats.active_tasks || 0,
+          completedTasks: stats.by_state?.completed || 0,
+          failedTasks: stats.by_state?.failed || 0
+        };
+        
+        displayWorkflowStatistics();
+      } catch (error) {
+        console.error('Error fetching workflow statistics:', error);
+      }
+    }
+
+    function displayWorkflowStatistics() {
+      document.getElementById('totalTasks').textContent = workflowStats.totalTasks;
+      document.getElementById('activeTasks').textContent = workflowStats.activeTasks;
+      document.getElementById('completedTasks').textContent = workflowStats.completedTasks;
+      document.getElementById('failedTasks').textContent = workflowStats.failedTasks;
+    }
+
+    function displayWorkflowTasks() {
+      const tasksContainer = document.getElementById('workflowTasks');
+      
+      if (workflowTasks.length === 0) {
+        tasksContainer.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 2rem;">No workflow tasks found</div>';
+        return;
+      }
+      
+      const tasksHtml = workflowTasks.map(task => {
+        const actions = getTaskActions(task);
+        return `
+          <div class="workflow-task-item state-${task.state}">
+            <div class="task-info">
+              <div class="task-id">${task.task_id}</div>
+              <div class="task-details">
+                Workflow: ${task.workflow_name} | 
+                Created: ${new Date(task.created_at).toLocaleString()} |
+                Step: ${task.current_step || 'Not started'}
+              </div>
+            </div>
+            <div style="display: flex; align-items: center;">
+              <span class="task-state ${task.state}">${task.state}</span>
+              <div class="task-progress">
+                <div class="task-progress-fill" style="width: ${task.progress || 0}%;"></div>
+              </div>
+              <div class="task-actions">
+                ${actions}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      tasksContainer.innerHTML = tasksHtml;
+    }
+
+    function getTaskActions(task) {
+      const actions = [];
+      
+      if (task.state === 'idle') {
+        actions.push(`<button class="task-btn btn-start" onclick="startWorkflowTask('${task.task_id}')">Start</button>`);
+      }
+      
+      if (['queued', 'running', 'waiting_for_dependency'].includes(task.state)) {
+        actions.push(`<button class="task-btn btn-cancel" onclick="cancelWorkflowTask('${task.task_id}')">Cancel</button>`);
+      }
+      
+      if (task.state === 'failed') {
+        actions.push(`<button class="task-btn btn-retry" onclick="retryWorkflowTask('${task.task_id}')">Retry</button>`);
+      }
+      
+      actions.push(`<button class="task-btn" onclick="viewWorkflowTaskDetails('${task.task_id}')">Details</button>`);
+      
+      return actions.join('');
+    }
+
+    // Workflow Task Actions
+    async function startWorkflowTask(taskId) {
+      try {
+        const response = await fetch(`/workflow/${taskId}/start`, { method: 'POST' });
+        const data = await response.json();
+        
+        if (response.ok) {
+          addLog('info', `Started workflow task: ${taskId}`);
+          refreshWorkflowTasks();
+        } else {
+          addLog('error', `Failed to start task ${taskId}: ${data.detail}`);
+        }
+      } catch (error) {
+        addLog('error', `Error starting task ${taskId}: ${error.message}`);
+      }
+    }
+
+    async function cancelWorkflowTask(taskId) {
+      try {
+        const response = await fetch(`/workflow/${taskId}/cancel`, { method: 'POST' });
+        const data = await response.json();
+        
+        if (response.ok) {
+          addLog('info', `Cancelled workflow task: ${taskId}`);
+          refreshWorkflowTasks();
+        } else {
+          addLog('error', `Failed to cancel task ${taskId}: ${data.detail}`);
+        }
+      } catch (error) {
+        addLog('error', `Error cancelling task ${taskId}: ${error.message}`);
+      }
+    }
+
+    async function retryWorkflowTask(taskId) {
+      try {
+        const response = await fetch(`/workflow/${taskId}/retry`, { method: 'POST' });
+        const data = await response.json();
+        
+        if (response.ok) {
+          addLog('info', `Retrying workflow task: ${taskId}`);
+          refreshWorkflowTasks();
+        } else {
+          addLog('error', `Failed to retry task ${taskId}: ${data.detail}`);
+        }
+      } catch (error) {
+        addLog('error', `Error retrying task ${taskId}: ${error.message}`);
+      }
+    }
+
+    async function viewWorkflowTaskDetails(taskId) {
+      try {
+        const response = await fetch(`/workflow/${taskId}/status`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          alert(`Task Details:\n${JSON.stringify(data, null, 2)}`);
+        } else {
+          addLog('error', `Failed to get task details for ${taskId}: ${data.detail}`);
+        }
+      } catch (error) {
+        addLog('error', `Error getting task details for ${taskId}: ${error.message}`);
+      }
+    }
+
+    // Create Workflow Dialog Functions
+    function showCreateWorkflowDialog() {
+      document.getElementById('createWorkflowDialog').style.display = 'flex';
+    }
+
+    function hideCreateWorkflowDialog() {
+      document.getElementById('createWorkflowDialog').style.display = 'none';
+      document.getElementById('createWorkflowForm').reset();
+    }
+
+    async function createWorkflowTask(event) {
+      event.preventDefault();
+      
+      const workflowNameSelect = document.getElementById('workflowName');
+      const selectedWorkflowName = workflowNameSelect.value; // This will be "default", "data_analysis", etc.
+
+      const formData = {
+        task_id: document.getElementById('workflowTaskId').value || undefined,
+        workflow_name: selectedWorkflowName, // Use the actual value from the select
+        user_input: document.getElementById('workflowUserInput').value,
+        priority: document.getElementById('workflowPriority').value
+      };
+      
+      try {
+        const response = await fetch('/workflow/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          addLog('info', `Created workflow task: ${data.task_id}`);
+          hideCreateWorkflowDialog();
+          refreshWorkflowTasks();
+          refreshWorkflowStatistics();
+        } else {
+          addLog('error', `Failed to create workflow task: ${data.detail}`);
+        }
+      } catch (error) {
+        addLog('error', `Error creating workflow task: ${error.message}`);
+      }
+    }
+  </script>
+  </div>
+</body>
+</html>
