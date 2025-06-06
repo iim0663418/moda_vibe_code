@@ -105,7 +105,7 @@ class HTTPToolWorkbench:
 
 
 class VibeCodeMultiAgentSystem:
-    def __init__(self, azure_openai_api_key: str, azure_openai_endpoint: str, azure_openai_deployment_name: str, mcp_config: Dict[str, str]):
+    def __init__(self, azure_openai_api_key: str, azure_openai_endpoint: str, azure_openai_deployment_name: str, azure_openai_api_version: str, mcp_config: Dict[str, str]):
         # Apply tiktoken monkey patch for better error handling
         self._apply_tiktoken_patch()
         
@@ -118,6 +118,9 @@ class VibeCodeMultiAgentSystem:
         
         if not azure_openai_deployment_name:
             raise ValueError("Azure OpenAI deployment name is required")
+        
+        if not azure_openai_api_version:
+            raise ValueError("Azure OpenAI API version is required")
         
         # Initialize model client with correct Azure AI configuration
         try:
@@ -150,6 +153,7 @@ class VibeCodeMultiAgentSystem:
         self._azure_openai_api_key = azure_openai_api_key
         self._azure_openai_endpoint = clean_endpoint
         self._azure_openai_deployment_name = azure_openai_deployment_name
+        self._azure_openai_api_version = azure_openai_api_version # Store API version
         
         # Agent definitions
         self.fetcher_agent = None
@@ -333,6 +337,7 @@ Process the following user request through this multi-agent simulation:
             api_key = None
             endpoint = None
             deployment_name = None
+            api_version = None
             
             # Try multiple ways to extract configuration
             if hasattr(self.model_client, '_credential') and hasattr(self.model_client._credential, 'key'):
@@ -349,7 +354,7 @@ Process the following user request through this multi-agent simulation:
                 deployment_name = self.model_client.model
             
             # If we can't extract from client, try to use initialization parameters stored during __init__
-            if not api_key or not endpoint or not deployment_name:
+            if not api_key or not endpoint or not deployment_name or not api_version:
                 # Store these during initialization for fallback use
                 if hasattr(self, '_azure_openai_api_key'):
                     api_key = api_key or self._azure_openai_api_key
@@ -357,15 +362,17 @@ Process the following user request through this multi-agent simulation:
                     endpoint = endpoint or self._azure_openai_endpoint
                 if hasattr(self, '_azure_openai_deployment_name'):
                     deployment_name = deployment_name or self._azure_openai_deployment_name
+                if hasattr(self, '_azure_openai_api_version'):
+                    api_version = api_version or self._azure_openai_api_version
             
-            if not all([api_key, endpoint, deployment_name]):
-                logger.error(f"Configuration extraction failed - API Key: {'✓' if api_key else '✗'}, Endpoint: {'✓' if endpoint else '✗'}, Deployment: {'✓' if deployment_name else '✗'}")
+            if not all([api_key, endpoint, deployment_name, api_version]):
+                logger.error(f"Configuration extraction failed - API Key: {'✓' if api_key else '✗'}, Endpoint: {'✓' if endpoint else '✗'}, Deployment: {'✓' if deployment_name else '✗'}, API Version: {'✓' if api_version else '✗'}")
                 raise ValueError("Failed to extract Azure OpenAI configuration for fallback")
             
             # Create Azure OpenAI client for fallback
             fallback_client = AsyncAzureOpenAI(
                 api_key=api_key,
-                api_version="2024-02-15-preview",
+                api_version=api_version,
                 azure_endpoint=endpoint.rstrip('/')
             )
             

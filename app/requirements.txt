@@ -13,6 +13,7 @@ aiohttp>=3.8.0
 tiktoken==0.7.0
 # Celery for task queue management
 celery[redis]==5.3.4
+flower==2.0.1 
 redis>=4.5.2,<5.0.0
 # State machine for workflow management
 transitions==0.9.0

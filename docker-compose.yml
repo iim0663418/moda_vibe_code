@@ -127,6 +127,7 @@ services:
       - .env
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       redis:

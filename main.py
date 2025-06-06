@@ -76,6 +76,7 @@ async def lifespan(app: FastAPI):
                 azure_openai_api_key=settings.azure_openai_api_key,
                 azure_openai_endpoint=settings.azure_openai_endpoint,
                 azure_openai_deployment_name=settings.azure_openai_deployment_name,
+                azure_openai_api_version=settings.azure_openai_api_version,
                 mcp_config=mcp_config
             )
             await multi_agent_system.start()
@@ -173,15 +174,15 @@ app.add_middleware(
 app.include_router(teams_router)
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="/app"), name="static")
+app.mount("/static", StaticFiles(directory="app"), name="static")
 
 @app.get("/")
 async def root():
     """Serve the frontend HTML interface."""
     try:
-        return FileResponse("/app/frontend.html")
+        return FileResponse("app/frontend.html")
     except FileNotFoundError:
-        logger.error("frontend.html not found at /app/frontend.html")
+        logger.error("frontend.html not found at app/frontend.html")
         raise HTTPException(status_code=404, detail="Frontend not found")
 
 @app.get("/health")
