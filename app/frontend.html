@@ -1668,20 +1668,29 @@
       const services = healthData.services || {};
       
       let healthHtml = '';
-      for (const [serviceName, serviceData] of Object.entries(services)) {
-        const statusClass = getHealthStatusClass(serviceData.status);
-        const serviceFriendlyName = serviceName.replace('_', ' ').toUpperCase();
-        
-        healthHtml += `
-          <div class="health-service ${statusClass}">
-            <div class="health-service-name">${serviceFriendlyName}</div>
-            <div class="health-service-status">Status: ${serviceData.status}</div>
-            ${serviceData.error ? `<div class="health-service-status" style="color: #dc3545;">Error: ${serviceData.error}</div>` : ''}
-          </div>
-        `;
+      if (Object.keys(services).length === 0) {
+        healthHtml = '<div class="service-status"><span class="service-name">No service health data available</span><span class="status-indicator status-unknown">N/A</span></div>';
+      } else {
+        for (const [serviceName, serviceData] of Object.entries(services)) {
+          // Ensure serviceData is an object and has a status property
+          const currentStatus = (serviceData && typeof serviceData === 'object' && serviceData.status) ? serviceData.status : 'unknown';
+          const statusClass = getHealthStatusClass(currentStatus);
+          const serviceFriendlyName = serviceName.replace(/_/g, ' ').toUpperCase();
+          const errorMessage = (serviceData && typeof serviceData === 'object' && serviceData.error) ? serviceData.error : '';
+          const message = (serviceData && typeof serviceData === 'object' && serviceData.message) ? serviceData.message : '';
+
+          healthHtml += `
+            <div class="health-service ${statusClass}">
+              <div class="health-service-name">${serviceFriendlyName}</div>
+              <div class="health-service-status">Status: ${currentStatus}</div>
+              ${message ? `<div class="health-service-status" style="font-size: 0.8em;">Message: ${escapeHtml(String(message))}</div>` : ''}
+              ${errorMessage ? `<div class="health-service-status" style="color: #dc3545; font-size: 0.8em;">Error: ${escapeHtml(String(errorMessage))}</div>` : ''}
+            </div>
+          `;
+        }
       }
       
-      systemHealthDiv.innerHTML = healthHtml || '<div class="service-status"><span class="service-name">No health data available</span></div>';
+      systemHealthDiv.innerHTML = healthHtml || '<div class="service-status"><span class="service-name">No health data available</span><span class="status-indicator status-unknown">N/A</span></div>';
     }
 
     function getHealthStatusClass(status) {

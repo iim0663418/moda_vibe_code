@@ -4,9 +4,9 @@
 
 ## 主要功能
 
-*   **多代理系統**：利用 AutoGen 框架實現智能代理之間的協作。
+*   **多代理系統**：利用 AutoGen 框架 (包括 AgentChat 和 GraphFlow) 實現智能代理之間的協作，支援更精確的工作流控制。
 *   **Azure OpenAI 整合**：支援透過 Azure OpenAI 服務進行語言模型互動。
-*   **Model Context Protocol (MCP) 整合**：與 MCP 伺服器（如 GitHub、Brave Search、SQLite）進行互動，擴展代理能力。
+*   **Model Context Protocol (MCP) 整合**：透過 AutoGen 的 `McpWorkbench` 與 MCP 伺服器（如 GitHub、Brave Search、SQLite）進行互動，擴展代理能力。
 *   **工作流程狀態機**：基於 `transitions` 庫實現任務的生命週期管理，支援任務創建、啟動、取消、重試和狀態追蹤。
 *   **團隊協作**：提供團隊管理和代理協作功能。
 *   **安全功能**：包含 API 金鑰驗證、速率限制、輸入清理和安全標頭。
@@ -15,7 +15,7 @@
 ## 技術棧
 
 *   **後端框架**：FastAPI
-*   **多代理框架**：AutoGen
+*   **多代理框架**：AutoGen (AgentChat, Core, GraphFlow, McpWorkbench)
 *   **AI 服務**：Azure OpenAI
 *   **任務佇列**：Celery (搭配 Redis)
 *   **狀態機**：Transitions
@@ -60,10 +60,12 @@
     # Security
     API_KEY_SECRET="your_strong_api_key_secret" # 用於 API 金鑰驗證
 
-    # MCP Configuration
-    MCP_GITHUB_URL="http://localhost:7001" # 範例 URL，請替換為實際的 MCP GitHub 伺服器 URL
-    MCP_BRAVE_SEARCH_URL="http://localhost:7002" # 範例 URL，請替換為實際的 MCP Brave Search 伺服器 URL
-    MCP_SQLITE_URL="http://localhost:7003" # 範例 URL，請替換為實際的 MCP SQLite 伺服器 URL
+    # MCP Configuration (These URLs are for accessing MCP servers from your host machine if they are port-mapped)
+    # Inside Docker Compose, services will use their service names, e.g., http://mcp-github:3000
+    MCP_FETCH_URL="http://localhost:YOUR_FETCH_MCP_PORT" # (可選) 如果您有單獨的 Fetch MCP 服務並映射到宿主機端口
+    MCP_GITHUB_URL="http://localhost:3001" # 映射到 mcp-github 服務的宿主機端口
+    MCP_BRAVE_SEARCH_URL="http://localhost:3002" # 映射到 mcp-brave-search 服務的宿主機端口
+    MCP_SQLITE_URL="http://localhost:3003" # 映射到 mcp-sqlite 服務的宿主機端口
     MCP_TIMEOUT=30 # MCP 請求超時時間 (秒)
 
     # Celery and Redis
@@ -90,8 +92,8 @@
     *   請求主體: `{"prompt": "你的提示詞"}`
 *   `POST /chat` (需 API 金鑰): 與多代理系統進行聊天。
     *   請求主體: `{"message": "你的訊息", "agent_type": "coordinator"}`
-*   `POST /multi-agent/send`: 向多代理系統發送消息。
-    *   請求主體: `{"content": "你的內容", "recipient_agent_type": "researcher"}`
+*   `POST /multi-agent/send`: 向多代理系統 (現已基於 GraphFlow) 發送消息。
+    *   請求主體: `{"content": "你的內容", "recipient_agent_type": "coordinator"}` (recipient_agent_type 可能更多用於標記初始意圖，實際流程由 GraphFlow 控制)
 *   `GET /multi-agent/status`: 獲取多代理系統狀態。
 *   `POST /workflow/create`: 創建新的工作流程任務。
     *   請求主體: `{"task_id": "unique_task_id", "workflow_name": "default_workflow", "user_input": "任務描述", "priority": "normal"}`
@@ -109,7 +111,7 @@
 ├── main.py                 # FastAPI 應用程式主入口
 ├── app/                    # 應用程式相關檔案
 │   └── frontend.html       # 簡單的前端使用者介面
-├── autogen_agents.py       # AutoGen 多代理系統的實現
+├── autogen_agents.py       # AutoGen 多代理系統的實現 (包含 McpWorkbench 和 GraphFlow 集成)
 ├── workflow_state_machine.py # 工作流程狀態機的實現
 ├── teams_api.py            # 團隊協作相關 API
 ├── config.py               # 應用程式配置設定 (Pydantic models)

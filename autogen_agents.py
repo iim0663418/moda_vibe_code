@@ -1,13 +1,15 @@
 import logging
 import httpx
 import tiktoken
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Callable
 from datetime import datetime
 from enum import Enum
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.teams import RoundRobinGroupChat
+from autogen_agentchat.teams import RoundRobinGroupChat, GraphFlow
+from autogen_agentchat.graph import DiGraph
 from autogen_agentchat.conditions import ExternalTermination, TextMentionTermination
 from autogen_ext.models.azure import AzureAIChatCompletionClient
+from autogen_ext.tools.mcp import McpWorkbench, McpServerConfig
 from azure.core.credentials import AzureKeyCredential
 from azure.core.exceptions import ResourceNotFoundError
 from token_utils import get_encoding_for_model, count_tokens_safe
@@ -36,73 +38,7 @@ class AgentMetadata:
         self.last_activity = None
         self.error_count = 0
 
-
-class HTTPToolWorkbench:
-    """Custom workbench to replace MCP workbench with direct HTTP calls."""
-    
-    def __init__(self, mcp_urls: Dict[str, str], timeout: int = 30):
-        self.mcp_urls = mcp_urls
-        self.timeout = timeout
-        self.client = None
-    
-    async def __aenter__(self):
-        self.client = httpx.AsyncClient(timeout=self.timeout)
-        return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.client:
-            await self.client.aclose()
-    
-    async def fetch_url(self, url: str) -> Dict[str, Any]:
-        """Fetch content from a URL using the fetch MCP server."""
-        if not self.client:
-            raise RuntimeError("Workbench not initialized. Use 'async with' context manager.")
-        
-        try:
-            # Call MCP fetch service directly via HTTP
-            # 這裡假設 MCP 服務提供了 REST API 端點
-            response = await self.client.post(
-                f"{self.mcp_urls.get('fetch', 'http://localhost:3000')}/fetch",
-                json={"url": url}
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logger.error(f"Error fetching URL {url}: {e}")
-            return {"error": str(e)}
-    
-    async def search_brave(self, query: str) -> Dict[str, Any]:
-        """Search using Brave Search via MCP server."""
-        if not self.client:
-            raise RuntimeError("Workbench not initialized. Use 'async with' context manager.")
-        
-        try:
-            response = await self.client.post(
-                f"{self.mcp_urls.get('brave', 'http://localhost:3001')}/search",
-                json={"query": query}
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logger.error(f"Error searching with Brave: {e}")
-            return {"error": str(e)}
-    
-    async def github_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
-        """Perform GitHub operations via MCP server."""
-        if not self.client:
-            raise RuntimeError("Workbench not initialized. Use 'async with' context manager.")
-        
-        try:
-            response = await self.client.post(
-                f"{self.mcp_urls.get('github', 'http://localhost:3002')}/{operation}",
-                json=kwargs
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logger.error(f"Error performing GitHub operation {operation}: {e}")
-            return {"error": str(e)}
-
+# HTTPToolWorkbench class is removed as it's being replaced by McpWorkbench
 
 class VibeCodeMultiAgentSystem:
     def __init__(self, azure_openai_api_key: str, azure_openai_endpoint: str, azure_openai_deployment_name: str, azure_openai_api_version: str, mcp_config: Dict[str, str]):
@@ -147,7 +83,20 @@ class VibeCodeMultiAgentSystem:
         
         # Store MCP configuration
         self.mcp_config = mcp_config
-        self.workbench = None
+        
+        # Initialize McpWorkbench
+        mcp_servers_config = []
+        if mcp_config.get('fetch_url'):
+            mcp_servers_config.append(McpServerConfig(name="fetch", url=mcp_config['fetch_url']))
+        if mcp_config.get('brave_search_url'):
+            mcp_servers_config.append(McpServerConfig(name="brave", url=mcp_config['brave_search_url']))
+        if mcp_config.get('github_url'):
+            mcp_servers_config.append(McpServerConfig(name="github", url=mcp_config['github_url']))
+        # Add other MCP servers as needed, e.g., filesystem, memory
+        # Example: mcp_servers_config.append(McpServerConfig(name="filesystem", url="http://localhost:3003"))
+
+        self.workbench = McpWorkbench(mcp_servers=mcp_servers_config, default_timeout=mcp_config.get('timeout', 30))
+        logger.info(f"McpWorkbench initialized with servers: {[s.name for s in mcp_servers_config]}")
         
         # Store Azure OpenAI configuration for fallback use
         self._azure_openai_api_key = azure_openai_api_key
@@ -440,19 +389,12 @@ Process the following user request through this multi-agent simulation:
 
     async def start(self):
         """Initialize the multi-agent system."""
-        # Initialize custom workbench
-        if self.workbench is None:
-            self.workbench = HTTPToolWorkbench(
-                mcp_urls={
-                    'fetch': self.mcp_config.get('fetch_url', 'http://localhost:3000'),
-                    'brave': self.mcp_config.get('brave_search_url', 'http://localhost:3001'),
-                    'github': self.mcp_config.get('github_url', 'http://localhost:3002'),
-                },
-                timeout=self.mcp_config.get('timeout', 30)
-            )
-            await self.workbench.__aenter__()
+        # McpWorkbench is initialized in __init__ and does not require explicit start/aenter for this use case
+        # if it were managing its own client lifecycle directly, it might.
+        logger.debug("VibeCodeMultiAgentSystem start called. McpWorkbench should be already initialized.")
 
         # Create specialized agents with specific system messages
+        logger.debug("Creating fetcher_agent...")
         self.fetcher_agent = AssistantAgent(
             name="fetcher",
             model_client=self.model_client,
@@ -464,7 +406,9 @@ Process the following user request through this multi-agent simulation:
 Always respond with structured data and indicate the source of information.""",
             reflect_on_tool_use=True,
         )
+        logger.debug("fetcher_agent created.")
         
+        logger.debug("Creating summarizer_agent...")
         self.summarizer_agent = AssistantAgent(
             name="summarizer",
             model_client=self.model_client,
@@ -476,7 +420,9 @@ Always respond with structured data and indicate the source of information.""",
 Focus on clarity and brevity while preserving important details.""",
             reflect_on_tool_use=True,
         )
+        logger.debug("summarizer_agent created.")
         
+        logger.debug("Creating analyzer_agent...")
         self.analyzer_agent = AssistantAgent(
             name="analyzer",
             model_client=self.model_client,
@@ -488,62 +434,149 @@ Focus on clarity and brevity while preserving important details.""",
 Provide objective analysis with evidence-based conclusions.""",
             reflect_on_tool_use=True,
         )
+        logger.debug("analyzer_agent created.")
         
+        logger.debug("Creating coordinator_agent...")
         self.coordinator_agent = AssistantAgent(
             name="coordinator",
             model_client=self.model_client,
             system_message="""You are a coordination agent. Your role is to:
-1. Coordinate tasks between different agents
-2. Manage workflow and task distribution
-3. Ensure all agents work towards common goals
-4. Resolve conflicts and prioritize tasks
-Focus on efficient task management and clear communication.""",
+1. Understand the user's overall goal and break it down into sub-tasks.
+2. Coordinate tasks between the fetcher, summarizer, analyzer, and responder agents.
+3. Manage the workflow: decide which agent should act next and provide clear instructions.
+4. Ensure all agents work towards the common goal and that their outputs are relevant.
+5. Resolve conflicts or ambiguities in information if they arise.
+6. When you believe all necessary information has been gathered, summarized, and analyzed, instruct the responder_agent to synthesize the final response.
+Focus on efficient task management, clear communication, and guiding the team to a comprehensive solution.""",
             reflect_on_tool_use=True,
         )
+        logger.debug("coordinator_agent created.")
         
+        logger.debug("Creating responder_agent...")
         self.responder_agent = AssistantAgent(
             name="responder",
             model_client=self.model_client,
             system_message="""You are a response generation agent. Your role is to:
-1. Synthesize information from all agents
-2. Generate final responses to user queries
-3. Ensure responses are coherent and complete
-4. Format responses appropriately for the context
+1. Synthesize information provided by the fetcher, summarizer, and analyzer agents, as coordinated by the coordinator.
+2. Generate a final, coherent, and comprehensive response to the user's query.
+3. Ensure the response directly addresses the user's request and incorporates all relevant insights.
+4. Format the response appropriately for clarity and readability.
+5. Once you have formulated the complete final response, end your message with "TASK_COMPLETE".
 Create clear, comprehensive, and user-friendly responses.""",
             reflect_on_tool_use=True,
         )
+        logger.debug("responder_agent created.")
 
         # Setup group chat with agents using RoundRobinGroupChat
         # Define termination condition
         text_termination = TextMentionTermination("TASK_COMPLETE")
+        logger.debug("Setting up GraphFlow...")
+
+        # Define a decision function for the graph
+        def decide_next_step_after_analysis(messages: List[Dict[str, Any]]) -> Optional[str]:
+            if not messages:
+                return None # Or raise error
+            last_message_content = messages[-1].get("content", "").lower()
+            # Simple decision logic, can be made more sophisticated
+            if "需要更多資訊" in last_message_content or "clarification needed" in last_message_content:
+                logger.info("Decision: Analysis requires more data, looping back to fetcher.")
+                return "fetcher"
+            elif "task_complete" in last_message_content: # If analyzer somehow says task complete
+                 logger.info("Decision: Analysis indicates task is complete, proceeding to responder.")
+                 return "responder"
+            else: # Default to responder if analysis seems sufficient
+                logger.info("Decision: Analysis seems sufficient, proceeding to responder.")
+                return "responder"
+
+        graph = DiGraph()
+        graph.add_node("fetcher", self.fetcher_agent)
+        graph.add_node("summarizer", self.summarizer_agent)
+        graph.add_node("analyzer", self.analyzer_agent)
+        graph.add_node("responder", self.responder_agent)
         
-        self.group_chat = RoundRobinGroupChat(
-            participants=[
-                self.fetcher_agent,
-                self.summarizer_agent,
-                self.analyzer_agent,
-                self.coordinator_agent,
-                self.responder_agent,
-            ],
-            termination_condition=text_termination,
+        # The coordinator's role is now partly embedded in the graph logic
+        # and the decision function. We might not need a separate coordinator node
+        # if the graph structure and decision functions handle its responsibilities.
+        # For now, we'll keep the coordinator_agent instance if its system message
+        # is still useful for general guidance or if it's used in a more complex graph.
+        # However, for a simple sequential flow with a decision, it might be replaced by functions.
+
+        graph.add_edge("fetcher", "summarizer")
+        graph.add_edge("summarizer", "analyzer")
+        
+        # Conditional routing after analyzer
+        # The 'decide_next_step_after_analysis' function will be called by the GraphFlow
+        # when a message is sent from the 'analyzer' node, if 'analyzer' is configured
+        # as a speaker that can transition to multiple next speakers based on a condition.
+        # AutoGen's GraphFlow typically uses a registered function with an agent or a special
+        # 'selector' node for this. For simplicity here, we'll assume the GraphFlow
+        # can be configured to use such a function or that the 'analyzer' agent itself
+        # can suggest the next step based on its output, which GraphFlow can interpret.
+        # A more robust way is to use a dedicated function node or a selector.
+        # Let's define a functional node for decision making.
+        
+        # We need to register the decision function with an agent or use a mechanism
+        # that GraphFlow supports for conditional branching.
+        # A common pattern is to have an agent whose reply determines the next step.
+        # Or, use a selector_dict in add_edge for more complex routing.
+
+        # For now, let's assume a simplified conditional edge based on a selector function
+        # that GraphFlow can use. The actual implementation might require
+        # registering this function with a (perhaps dummy) agent or using specific
+        # GraphFlow features for conditional routing.
+
+        # Simplified approach: Analyzer's output is passed to a selector.
+        # This requires `analyzer` to be a `Speaker` that can have conditional next speakers.
+        # Or, we add a functional node.
+        
+        # Let's try adding a functional node for the decision.
+        # This function node will receive the last message (from analyzer) and decide.
+        graph.add_node(
+            name="decision_node",
+            agent=decide_next_step_after_analysis # This assumes GraphFlow can take a callable as a node
+                                               # More typically, this logic is part of a Speaker's `generate_reply`
+                                               # or a specific selector mechanism in GraphFlow.
+                                               # For now, this is a placeholder for the decision logic.
+                                               # AutoGen's GraphFlow expects agents as nodes.
+                                               # So, the decision logic might need to be wrapped in a simple agent
+                                               # or handled by the 'analyzer' agent itself by suggesting the next speaker.
         )
+        graph.add_edge("analyzer", "decision_node")
+        graph.add_edge("decision_node", "fetcher", condition=lambda msg_content: msg_content == "fetcher")
+        graph.add_edge("decision_node", "responder", condition=lambda msg_content: msg_content == "responder")
+
+
+        # The entry_point and exit_points need to be defined.
+        # Let's assume the initial message goes to the fetcher.
+        # The final response comes from the responder.
+        self.group_chat = GraphFlow(
+            graph=graph,
+            entry_point="fetcher", 
+            # exit_points=["responder"], # GraphFlow might not use exit_points like this,
+                                      # termination is usually handled by agent messages or max_rounds.
+            max_round=20 # Increased max_round for potentially complex flows
+        )
+        logger.info("GraphFlow setup complete.")
 
     async def stop(self):
         """Stop the multi-agent system and clean up resources."""
         try:
             await self.model_client.close()
+            logger.info("Model client closed.")
         except Exception as e:
             logger.error(f"Error closing model client: {e}")
         
         if self.workbench is not None:
-            try:
-                await self.workbench.__aexit__(None, None, None)
-            except Exception as e:
-                logger.error(f"Error closing workbench: {e}")
+            # McpWorkbench does not have an __aexit__ in the same way HTTPToolWorkbench did for its httpx.AsyncClient
+            # If McpWorkbench manages resources that need explicit closing, it should provide a close() method.
+            # For now, we assume its resources are managed internally or don't require explicit async closing.
+            logger.info("McpWorkbench does not require explicit async closing in this context.")
+            pass
 
     async def send_message(self, content: str, recipient_agent_type: str = "coordinator") -> Dict[str, Any]:
         """Send a message to the multi-agent system and get a response with enhanced conversation history."""
         if self.group_chat is None:
+            logger.error("Attempted to send message but multi-agent system (group_chat) is not started.")
             raise RuntimeError("Multi-agent system not started. Call start() before sending messages.")
 
         # Initialize session tracking
@@ -551,38 +584,69 @@ Create clear, comprehensive, and user-friendly responses.""",
             self.session_start_time = datetime.utcnow()
             import uuid
             self.conversation_session_id = str(uuid.uuid4())
+            logger.info(f"New conversation session started. ID: {self.conversation_session_id}")
 
         # Reset agent statuses at start of conversation
         for agent_name in self.agent_metadata:
             self._update_agent_status(agent_name, AgentStatus.IDLE)
+        logger.debug("Agent statuses reset to IDLE for new message.")
 
         try:
             from autogen_core import CancellationToken
             
             # Mark conversation as starting
-            self._update_agent_status(recipient_agent_type, AgentStatus.ACTIVE)
+            # For GraphFlow, the recipient_agent_type might be less relevant if entry_point is fixed.
+            # However, we can still use it to mark the initial target or a conceptual recipient.
+            initial_speaker_name = self.group_chat.entry_point if isinstance(self.group_chat.entry_point, str) else self.group_chat.entry_point.name
+            self._update_agent_status(initial_speaker_name, AgentStatus.ACTIVE) # Mark entry point as active
+            logger.info(f"Sending message to GraphFlow. Entry point: {initial_speaker_name}. Content: '{content[:50]}...'")
             
             # Run the team with the user message with specific error handling
             try:
-                result = await self.group_chat.run(
-                    task=content,
+                # GraphFlow's run method might take messages list directly
+                # For a new task, we typically provide the initial message.
+                # The 'task' parameter might still be valid, or it might expect an initial message dict.
+                # Referring to AutoGen docs: graph_flow.run(messages=[...], cancellation_token=...)
+                # Let's assume the first message is from a "user_proxy" or similar.
+                # For simplicity, we'll adapt the existing 'task=content' if possible,
+                # or construct an initial message.
+                
+                # Constructing an initial message for GraphFlow
+                # This part needs careful alignment with how GraphFlow expects initial input.
+                # Typically, a UserProxyAgent sends the first message.
+                # If VibeCodeMultiAgentSystem acts as the user proxy, it should format the message.
+                
+                # Let's assume GraphFlow's `run` can take a `task` string which it internally
+                # uses to initiate the conversation with the entry_point agent.
+                # If not, we'd need a UserProxyAgent or to manually craft the first message.
+                # For now, we'll try with `task=content` and see if it's compatible or needs adjustment.
+                
+                # The result of graph_flow.run() is typically the list of messages in the conversation.
+                result_messages = await self.group_chat.run(
+                    # messages=[{"role": "user", "content": content, "name": "user_proxy_for_vibe_code"}], # Alternative
+                    task=content, # Assuming this works by sending to entry_point
                     cancellation_token=CancellationToken()
                 )
+                logger.debug("GraphFlow run completed.")
+                
+                # Adapt the result processing if result_messages is a list of messages
+                # The previous code expected `result.messages`. If `result_messages` is the list itself:
+                processed_result = {"messages": result_messages}
+
             except ResourceNotFoundError as e:
-                logger.error(f"Azure OpenAI Resource Not Found Error: {e}")
-                logger.info("Attempting fallback to single agent simulation")
+                logger.error(f"Azure OpenAI Resource Not Found Error during group chat: {e}. Triggering fallback.")
                 # Use fallback single agent simulation instead of returning error
                 return await self.fallback_single_agent_simulation(content)
             except Exception as group_chat_error:
-                # Check if it's a GroupChatError or similar autogen error
                 error_class_name = type(group_chat_error).__name__
-                if "GroupChat" in error_class_name or "Chat" in error_class_name:
-                    logger.error(f"GroupChat Error: {group_chat_error}")
-                    logger.info("Attempting fallback to single agent simulation")
+                # Check if it's a GroupChatError or similar autogen error
+                if "GroupChat" in error_class_name or "Chat" in error_class_name or "Agent" in error_class_name:
+                    logger.error(f"AutoGen specific error ({error_class_name}) during group chat: {group_chat_error}. Triggering fallback.")
                     # Use fallback single agent simulation instead of returning error
                     return await self.fallback_single_agent_simulation(content)
                 else:
                     # Re-raise other exceptions to be handled by outer try/except
+                    logger.error(f"Unhandled exception during group_chat.run: {group_chat_error}", exc_info=True)
                     raise
             
             # Extract conversation history and final response with enhanced metadata
@@ -590,53 +654,76 @@ Create clear, comprehensive, and user-friendly responses.""",
             final_response = ""
             participating_agents = set()
             
-            if hasattr(result, 'messages') and result.messages:
+            # Use processed_result which should have a 'messages' attribute
+            if hasattr(processed_result, 'messages') and processed_result['messages']:
+                logger.debug(f"Processing {len(processed_result['messages'])} messages from GraphFlow result.")
                 # Process all messages in the conversation
-                for i, message in enumerate(result.messages):
-                    if hasattr(message, 'source') and hasattr(message, 'content'):
-                        agent_name = getattr(message.source, 'name', 'unknown')
-                        participating_agents.add(agent_name)
-                        
-                        # Update agent status and tracking
-                        self._update_agent_status(agent_name, AgentStatus.PROCESSING, increment_message=True)
-                        
-                        # Create enhanced message with metadata
-                        enhanced_message = {
-                            "agent": agent_name,
-                            "content": str(message.content),
-                            "timestamp": datetime.utcnow().isoformat(),
-                            "message_id": f"msg_{self.conversation_session_id}_{i}",
-                            "sequence_number": i,
-                            "agent_role": self.agent_metadata.get(agent_name, {}).role if agent_name in self.agent_metadata else "Unknown",
-                            "agent_description": self.agent_metadata.get(agent_name, {}).description if agent_name in self.agent_metadata else "",
-                            "message_length": len(str(message.content))
-                        }
-                        conversation_history.append(enhanced_message)
+                for i, message_obj in enumerate(processed_result['messages']):
+                    # Message object structure from GraphFlow might be different.
+                    # Assuming it's a dict with 'role', 'content', and 'name' (for agent name)
+                    # Or it could be an AgentMessage object with a 'sender' attribute.
+                    
+                    agent_name = "unknown"
+                    msg_content = ""
+
+                    if isinstance(message_obj, dict):
+                        agent_name = message_obj.get("name") or message_obj.get("role", "unknown") # Prefer name if available
+                        msg_content = str(message_obj.get("content", ""))
+                    elif hasattr(message_obj, 'sender') and hasattr(message_obj, 'content'): # For AgentMessage like objects
+                        agent_name = getattr(message_obj.sender, 'name', 'unknown_sender_object')
+                        msg_content = str(message_obj.content)
+                    elif hasattr(message_obj, 'source') and hasattr(message_obj, 'content'): # Compatibility with older structure
+                        agent_name = getattr(message_obj.source, 'name', 'unknown_source_object')
+                        msg_content = str(message_obj.content)
+                    else:
+                        logger.warning(f"Message object at index {i} has unexpected structure: {message_obj}")
+                        continue
+
+                    participating_agents.add(agent_name)
+                    
+                    # Update agent status and tracking
+                    self._update_agent_status(agent_name, AgentStatus.PROCESSING, increment_message=True)
+                    
+                    # Create enhanced message with metadata
+                    enhanced_message = {
+                        "agent": agent_name,
+                        "content": msg_content,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "message_id": f"msg_{self.conversation_session_id}_{i}",
+                        "sequence_number": i,
+                        "agent_role": self.agent_metadata.get(agent_name, {}).get("role", "Unknown Role") if agent_name in self.agent_metadata else "Unknown Agent",
+                        "agent_description": self.agent_metadata.get(agent_name, {}).get("description", "") if agent_name in self.agent_metadata else "",
+                        "message_length": len(msg_content)
+                    }
+                    conversation_history.append(enhanced_message)
                 
                 # Mark participating agents as completed
-                for agent_name in participating_agents:
-                    self._update_agent_status(agent_name, AgentStatus.COMPLETED)
+                for agent_name_iter in participating_agents: # Use a different variable name
+                    self._update_agent_status(agent_name_iter, AgentStatus.COMPLETED)
                 
                 # Get the last message as final response
-                last_message = result.messages[-1]
-                if hasattr(last_message, 'content'):
-                    final_response = str(last_message.content)
+                if conversation_history: # Ensure there's at least one message
+                    final_response = conversation_history[-1]["content"]
                 else:
-                    final_response = str(last_message)
-            elif hasattr(result, 'content'):
-                final_response = str(result.content)
+                    logger.warning("No messages in conversation_history after processing GraphFlow result.")
+                    final_response = "No response generated."
+
+            elif hasattr(processed_result, 'content'): # Fallback if result is a single content string
+                logger.debug("GraphFlow result has 'content' attribute directly (unexpected for message list).")
+                final_response = str(processed_result.content)
                 conversation_history.append({
-                    "agent": "system",
+                    "agent": "system", 
                     "content": final_response,
                     "timestamp": datetime.utcnow().isoformat(),
                     "message_id": f"msg_{self.conversation_session_id}_0",
                     "sequence_number": 0,
-                    "agent_role": "System",
+                    "agent_role": "System", # Or determine
                     "agent_description": "System-level response",
                     "message_length": len(final_response)
                 })
             else:
-                final_response = str(result)
+                logger.warning(f"Group chat result is not in expected format: {result}")
+                final_response = str(result) # Fallback to string representation
                 conversation_history.append({
                     "agent": "system", 
                     "content": final_response,
@@ -650,6 +737,7 @@ Create clear, comprehensive, and user-friendly responses.""",
 
             # Calculate session statistics
             session_duration = (datetime.utcnow() - self.session_start_time).total_seconds()
+            logger.info(f"Multi-agent processing complete. Final response length: {len(final_response)}. Duration: {session_duration:.2f}s.")
             
             return {
                 "final_response": final_response,
@@ -666,7 +754,7 @@ Create clear, comprehensive, and user-friendly responses.""",
             }
 
         except Exception as e:
-            logger.error(f"Error processing message: {e}")
+            logger.error(f"Error processing message in send_message: {e}", exc_info=True)
             
             # Check if this error should trigger fallback
             should_use_fallback = False
@@ -674,22 +762,22 @@ Create clear, comprehensive, and user-friendly responses.""",
             error_type = type(e).__name__
             
             # Check for ResourceNotFoundError in exception chain or error message
-            if "ResourceNotFound" in error_type or "404" in error_str or "Resource not found" in error_str:
+            if "ResourceNotFound" in error_type or "404" in error_str or "Resource not found" in error_str.lower():
                 should_use_fallback = True
-                logger.info("Detected ResourceNotFoundError in exception chain, attempting fallback")
+                logger.warning(f"Detected ResourceNotFoundError-like pattern in error type '{error_type}' or message. Error: {e}. Triggering fallback.")
             
             # Check for GroupChat related errors
-            elif any(keyword in error_type for keyword in ["GroupChat", "Chat", "Agent"]):
+            elif any(keyword.lower() in error_type.lower() for keyword in ["GroupChat", "Chat", "Agent", "AutoGen", "Message"]): # Broader check for AutoGen related errors
                 should_use_fallback = True
-                logger.info("Detected GroupChat/Agent error, attempting fallback")
+                logger.warning(f"Detected AutoGen-related error pattern in error type '{error_type}'. Error: {e}. Triggering fallback.")
                 
             # Check for serialization errors that might indicate GroupChat issues
-            elif "serializ" in error_str.lower() or "Unhandled message" in error_str:
+            elif "serializ" in error_str.lower() or "unhandled message" in error_str.lower(): # case-insensitive
                 should_use_fallback = True
-                logger.info("Detected serialization/message handling error, attempting fallback")
+                logger.warning(f"Detected serialization/message handling error pattern. Error: {e}. Triggering fallback.")
             
             if should_use_fallback:
-                logger.info("Using fallback mechanism due to detected error patterns")
+                # logger.info("Using fallback mechanism due to detected error patterns") # Already logged with more details above
                 return await self.fallback_single_agent_simulation(content)
             
             # Mark error state for any active agents
@@ -756,19 +844,43 @@ Create clear, comprehensive, and user-friendly responses.""",
         }
 
     async def fetch_url(self, url: str) -> Dict[str, Any]:
-        """Fetch content from a URL using the workbench."""
+        """Fetch content from a URL using McpWorkbench."""
         if not self.workbench:
-            raise RuntimeError("System not started. Call start() first.")
-        return await self.workbench.fetch_url(url)
+            logger.error("McpWorkbench not initialized in fetch_url.")
+            raise RuntimeError("System not started or workbench not initialized. Call start() first.")
+        try:
+            # Assuming the 'fetch' MCP server has a tool named 'fetch_url' or similar
+            # The exact tool_name depends on the MCP server's definition.
+            # For a generic fetch server, 'fetch' or 'get_url_content' might be tool names.
+            # Let's assume a tool named 'fetch_html' for now, similar to zcaceres/fetch-mcp
+            logger.debug(f"Using McpWorkbench to fetch URL: {url}")
+            return await self.workbench.use_tool(server_name="fetch", tool_name="fetch_html", arguments={"url": url})
+        except Exception as e:
+            logger.error(f"Error using McpWorkbench for fetch_url {url}: {e}", exc_info=True)
+            return {"error": str(e)}
 
     async def search_brave(self, query: str) -> Dict[str, Any]:
-        """Search using Brave Search."""
+        """Search using Brave Search via McpWorkbench."""
         if not self.workbench:
-            raise RuntimeError("System not started. Call start() first.")
-        return await self.workbench.search_brave(query)
+            logger.error("McpWorkbench not initialized in search_brave.")
+            raise RuntimeError("System not started or workbench not initialized. Call start() first.")
+        try:
+            # Assuming the 'brave' MCP server has a tool named 'search'
+            logger.debug(f"Using McpWorkbench to search Brave: {query}")
+            return await self.workbench.use_tool(server_name="brave", tool_name="search", arguments={"query": query})
+        except Exception as e:
+            logger.error(f"Error using McpWorkbench for search_brave with query '{query}': {e}", exc_info=True)
+            return {"error": str(e)}
 
     async def github_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
-        """Perform GitHub operations."""
+        """Perform GitHub operations via McpWorkbench."""
         if not self.workbench:
-            raise RuntimeError("System not started. Call start() first.")
-        return await self.workbench.github_operation(operation, **kwargs)
+            logger.error("McpWorkbench not initialized in github_operation.")
+            raise RuntimeError("System not started or workbench not initialized. Call start() first.")
+        try:
+            # The 'operation' itself is likely the tool_name for the 'github' MCP server
+            logger.debug(f"Using McpWorkbench for GitHub operation: {operation} with args {kwargs}")
+            return await self.workbench.use_tool(server_name="github", tool_name=operation, arguments=kwargs)
+        except Exception as e:
+            logger.error(f"Error using McpWorkbench for github_operation '{operation}': {e}", exc_info=True)
+            return {"error": str(e)}

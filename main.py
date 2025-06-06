@@ -64,12 +64,13 @@ async def lifespan(app: FastAPI):
     # Start multi-agent system (independent of MCP)
     async def start_multi_agent_system():
         try:
-            mcp_config = {
-                'fetch_url': settings.mcp_config.github_url,  # 暫時使用 github url 作為 fetch url
+            mcp_config_data = {
                 'brave_search_url': settings.mcp_config.brave_search_url,
                 'github_url': settings.mcp_config.github_url,
                 'timeout': settings.mcp_config.timeout
             }
+            if settings.mcp_config.fetch_url: # Only add fetch_url if it's configured
+                mcp_config_data['fetch_url'] = settings.mcp_config.fetch_url
             
             global multi_agent_system
             multi_agent_system = VibeCodeMultiAgentSystem(
@@ -77,7 +78,7 @@ async def lifespan(app: FastAPI):
                 azure_openai_endpoint=settings.azure_openai_endpoint,
                 azure_openai_deployment_name=settings.azure_openai_deployment_name,
                 azure_openai_api_version=settings.azure_openai_api_version,
-                mcp_config=mcp_config
+                mcp_config=mcp_config_data
             )
             await multi_agent_system.start()
             logger.info("Multi-agent system started successfully")
@@ -527,11 +528,19 @@ async def get_system_health():
         # Multi-agent system health
         if multi_agent_system:
             try:
-                health_data["services"]["multi_agent"] = multi_agent_system.get_system_health()
+                # Ensure get_system_health returns a dict with 'status'
+                mas_health = multi_agent_system.get_system_health()
+                if isinstance(mas_health, dict) and "status" in mas_health:
+                    health_data["services"]["multi_agent"] = mas_health
+                else:
+                    logger.error(f"multi_agent_system.get_system_health() returned unexpected data: {mas_health}")
+                    health_data["services"]["multi_agent"] = {"status": "error", "error": "Invalid health data format from multi_agent_system"}
             except Exception as e:
+                logger.error(f"Error getting multi_agent_system health: {e}")
                 health_data["services"]["multi_agent"] = {"status": "error", "error": str(e)}
         else:
-            health_data["services"]["multi_agent"] = {"status": "unavailable"}
+            # This case implies multi_agent_system was not initialized or failed to start
+            health_data["services"]["multi_agent"] = {"status": "unavailable", "message": "Multi-agent system is not initialized or failed to start."}
         
         # MCP health
         try:
