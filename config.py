@@ -41,6 +41,7 @@ class AzureOpenAIConfig(BaseModel):
 
 class MCPServerConfig(BaseModel):
     """MCP Server configuration."""
+    fetch_url: Optional[str] = Field(default=None, description="URL for the fetch MCP server") # Added fetch_url
     github_url: str = Field(default="http://mcp-github:3000")
     brave_search_url: str = Field(default="http://mcp-brave-search:3000")
     sqlite_url: str = Field(default="http://mcp-sqlite:3000")
@@ -79,7 +80,8 @@ class Settings(BaseModel):
     cors_origins: str = Field(default="http://localhost:3000,http://localhost:8000")
     max_request_size: int = Field(default=10 * 1024 * 1024, description="Maximum request size in bytes")
     
-    # MCP Server settings (將改為直接HTTP調用而非MCP套件)
+    # MCP Server settings
+    mcp_fetch_url: Optional[str] = Field(default=None, description="URL for the fetch MCP server, e.g., http://mcp-fetch:3000") # Added
     mcp_github_url: str = Field(default="http://mcp-github:3000")
     mcp_brave_search_url: str = Field(default="http://mcp-brave-search:3000")
     mcp_sqlite_url: str = Field(default="http://mcp-sqlite:3000")
@@ -153,6 +155,7 @@ class Settings(BaseModel):
             max_request_size=get_env("MAX_REQUEST_SIZE", 10 * 1024 * 1024, int),
             
             # MCP Server settings
+            mcp_fetch_url=get_env("MCP_FETCH_URL"), # Added
             mcp_github_url=get_env("MCP_GITHUB_URL", "http://mcp-github:3000"),
             mcp_brave_search_url=get_env("MCP_BRAVE_SEARCH_URL", "http://mcp-brave-search:3000"),
             mcp_sqlite_url=get_env("MCP_SQLITE_URL", "http://mcp-sqlite:3000"),
@@ -177,6 +180,7 @@ class Settings(BaseModel):
     def mcp_config(self) -> MCPServerConfig:
         """Get MCP server configuration."""
         return MCPServerConfig(
+            fetch_url=self.mcp_fetch_url, # Added
             github_url=self.mcp_github_url,
             brave_search_url=self.mcp_brave_search_url,
             sqlite_url=self.mcp_sqlite_url,
