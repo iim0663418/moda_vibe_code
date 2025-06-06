@@ -47,15 +47,35 @@
       background-color: #999;
       cursor: not-allowed;
     }
-    #response {
-      margin-top: 1rem;
-      padding: 1rem;
-      background-color: white;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      min-height: 100px;
-      white-space: pre-wrap;
+   #response {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    min-height: 100px;
+    max-height: 60vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 1.06rem;
+    line-height: 1.65;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
+
+    /* 滾動條樣式（Webkit瀏覽器） */
+    #response::-webkit-scrollbar {
+      width: 8px;
+      background: #f7f7f7;
+    }
+    #response::-webkit-scrollbar-thumb {
+      background: #bbb;
+      border-radius: 8px;
+    }
+    #response::-webkit-scrollbar-thumb:hover {
+      background: #999;
+    }
+
     .status-panel {
       margin-bottom: 2rem;
       padding: 1rem;
